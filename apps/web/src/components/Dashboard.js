@@ -64,7 +64,7 @@ export function Dashboard({ user, accessToken, onSessionUpdate }) {
     const [processesBusy, setProcessesBusy] = useState(false);
     const [processesError, setProcessesError] = useState(null);
     const [selectedProcessIds, setSelectedProcessIds] = useState([]);
-    const [activeLogProcess, setActiveLogProcess] = useState(null);
+    const [activeLogProcesses, setActiveLogProcesses] = useState([]);
     const [visibleLogLines, setVisibleLogLines] = useState([]);
     const [logStatus, setLogStatus] = useState("idle");
     const [logError, setLogError] = useState(null);
@@ -146,8 +146,9 @@ export function Dashboard({ user, accessToken, onSessionUpdate }) {
             return;
         }
         const filtered = source.filter((entry) => {
-            const matchesInclude = includeRegex ? includeRegex.test(entry.line) : true;
-            const matchesExclude = excludeRegex ? excludeRegex.test(entry.line) : false;
+            const haystack = `${entry.processLabel} ${entry.line}`;
+            const matchesInclude = includeRegex ? includeRegex.test(haystack) : true;
+            const matchesExclude = excludeRegex ? excludeRegex.test(haystack) : false;
             return matchesInclude && !matchesExclude;
         });
         startTransition(() => {
@@ -201,12 +202,12 @@ export function Dashboard({ user, accessToken, onSessionUpdate }) {
         if (!selectedHostId) {
             setProcesses([]);
             setSelectedProcessIds([]);
-            setActiveLogProcess(null);
+            setActiveLogProcesses([]);
             setProcessesError(null);
             return;
         }
         setSelectedProcessIds([]);
-        setActiveLogProcess(null);
+        setActiveLogProcesses([]);
         clearLogs();
         stopLogs();
         void loadProcessesForHost(selectedHostId);
@@ -263,19 +264,27 @@ export function Dashboard({ user, accessToken, onSessionUpdate }) {
     function stopLogs() {
         socketRef.current?.emit("logs:stop");
     }
-    function startLogs(process) {
+    function startLogs(processSelection) {
         if (!selectedHostId) {
             return;
         }
+        const nextProcesses = Array.isArray(processSelection) ? processSelection : [processSelection];
+        const uniqueProcesses = [...new Map(nextProcesses.map((process) => [process.pmId, process])).values()];
+        if (uniqueProcesses.length === 0) {
+            return;
+        }
         setActiveTab("logs");
-        setActiveLogProcess(process);
+        setActiveLogProcesses(uniqueProcesses);
         setPaused(false);
         setLogError(null);
         clearLogs();
         setLogStatus("connecting");
         socketRef.current?.emit("logs:start", {
             hostId: selectedHostId,
-            processIdOrName: process.pmId,
+            targets: uniqueProcesses.map((process) => ({
+                processIdOrName: process.pmId,
+                label: process.name
+            })),
             initialLines
         });
     }
@@ -431,6 +440,7 @@ export function Dashboard({ user, accessToken, onSessionUpdate }) {
     }
     const allFilteredSelected = filteredProcesses.length > 0 &&
         filteredProcesses.every((process) => selectedProcessIds.includes(process.pmId));
+    const selectedProcesses = processes.filter((process) => selectedProcessIds.includes(process.pmId));
     return (_jsxs(_Fragment, { children: [_jsx(HostModal, { busy: hostMutationBusy, host: editingHost, onClose: () => {
                     setEditingHost(null);
                     setHostModalOpen(false);
@@ -471,7 +481,7 @@ export function Dashboard({ user, accessToken, onSessionUpdate }) {
                                                                                     id: tag.id,
                                                                                     name: tag.name,
                                                                                     color: tag.color ?? "#64748b"
-                                                                                }), type: "button", children: "Edit" }), _jsx("button", { className: "button-ghost", onClick: () => void handleTagDelete(tag), type: "button", children: "Delete" })] })] }, tag.id))) })] })] })] }), _jsxs("main", { className: "space-y-4", children: [_jsx("section", { className: "panel px-6 py-5", children: selectedHost ? (_jsxs("div", { className: "grid gap-4 lg:grid-cols-[1fr_auto]", children: [_jsxs("div", { children: [_jsxs("div", { className: "inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-400", children: [_jsx(Activity, { className: "size-4" }), "Active host"] }), _jsx("h2", { className: "mt-3 text-3xl font-semibold text-white", children: selectedHost.name }), _jsxs("div", { className: "mt-2 text-sm text-slate-400", children: [selectedHost.username, "@", selectedHost.host, ":", selectedHost.port] }), _jsxs("div", { className: "mt-4 flex flex-wrap gap-2 text-sm text-slate-300", children: [_jsx("span", { className: "rounded-full border border-white/10 bg-white/5 px-3 py-1.5", children: selectedHost.authType === "PASSWORD" ? "Password auth" : "Private key" }), _jsxs("span", { className: "rounded-full border border-white/10 bg-white/5 px-3 py-1.5", children: ["Fingerprint ", selectedHost.hostFingerprint ?? "not pinned"] })] })] }), _jsxs("div", { className: "flex flex-wrap gap-2 lg:justify-end", children: [_jsx("button", { className: `button-ghost ${activeTab === "processes" ? "bg-white/10 text-white" : ""}`, onClick: () => setActiveTab("processes"), type: "button", children: "Processes" }), _jsx("button", { className: `button-ghost ${activeTab === "logs" ? "bg-white/10 text-white" : ""}`, onClick: () => setActiveTab("logs"), type: "button", children: "Logs" })] })] })) : (_jsx("div", { className: "text-sm text-slate-400", children: "Select a host to inspect its PM2 processes." })) }), activeTab === "processes" ? (_jsxs("section", { className: "panel overflow-hidden", children: [_jsxs("div", { className: "flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-5", children: [_jsxs("div", { children: [_jsx("h3", { className: "text-2xl font-semibold text-white", children: "PM2 processes" }), _jsx("p", { className: "mt-2 text-sm text-slate-400", children: "Searchable process inventory with status filtering and log shortcuts." })] }), _jsxs("div", { className: "flex flex-wrap gap-3", children: [_jsx("input", { className: "field min-w-56", onChange: (event) => setProcessSearch(event.target.value), placeholder: "Search processes", value: processSearch }), _jsxs("select", { className: "field min-w-40", onChange: (event) => setStatusFilter(event.target.value), value: statusFilter, children: [_jsx("option", { value: "all", children: "All statuses" }), _jsx("option", { value: "online", children: "Online" }), _jsx("option", { value: "stopped", children: "Stopped" }), _jsx("option", { value: "errored", children: "Errored" })] }), _jsxs("button", { className: "button-secondary", disabled: !selectedHost || processesBusy, onClick: () => {
+                                                                                }), type: "button", children: "Edit" }), _jsx("button", { className: "button-ghost", onClick: () => void handleTagDelete(tag), type: "button", children: "Delete" })] })] }, tag.id))) })] })] })] }), _jsxs("main", { className: "space-y-4", children: [_jsx("section", { className: "panel px-6 py-5", children: selectedHost ? (_jsxs("div", { className: "grid gap-4 lg:grid-cols-[1fr_auto]", children: [_jsxs("div", { children: [_jsxs("div", { className: "inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-400", children: [_jsx(Activity, { className: "size-4" }), "Active host"] }), _jsx("h2", { className: "mt-3 text-3xl font-semibold text-white", children: selectedHost.name }), _jsxs("div", { className: "mt-2 text-sm text-slate-400", children: [selectedHost.username, "@", selectedHost.host, ":", selectedHost.port] }), _jsxs("div", { className: "mt-4 flex flex-wrap gap-2 text-sm text-slate-300", children: [_jsx("span", { className: "rounded-full border border-white/10 bg-white/5 px-3 py-1.5", children: selectedHost.authType === "PASSWORD" ? "Password auth" : "Private key" }), _jsxs("span", { className: "rounded-full border border-white/10 bg-white/5 px-3 py-1.5", children: ["Fingerprint ", selectedHost.hostFingerprint ?? "not pinned"] })] })] }), _jsxs("div", { className: "flex flex-wrap gap-2 lg:justify-end", children: [_jsx("button", { className: `button-ghost ${activeTab === "processes" ? "bg-white/10 text-white" : ""}`, onClick: () => setActiveTab("processes"), type: "button", children: "Processes" }), _jsx("button", { className: `button-ghost ${activeTab === "logs" ? "bg-white/10 text-white" : ""}`, onClick: () => setActiveTab("logs"), type: "button", children: "Logs" })] })] })) : (_jsx("div", { className: "text-sm text-slate-400", children: "Select a host to inspect its PM2 processes." })) }), activeTab === "processes" ? (_jsxs("section", { className: "panel overflow-hidden", children: [_jsxs("div", { className: "flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-5", children: [_jsxs("div", { children: [_jsx("h3", { className: "text-2xl font-semibold text-white", children: "PM2 processes" }), _jsx("p", { className: "mt-2 text-sm text-slate-400", children: "Searchable process inventory with status filtering and log shortcuts." })] }), _jsxs("div", { className: "flex flex-wrap gap-3", children: [_jsx("input", { className: "field min-w-56", onChange: (event) => setProcessSearch(event.target.value), placeholder: "Search processes", value: processSearch }), _jsxs("select", { className: "field min-w-40", onChange: (event) => setStatusFilter(event.target.value), value: statusFilter, children: [_jsx("option", { value: "all", children: "All statuses" }), _jsx("option", { value: "online", children: "Online" }), _jsx("option", { value: "stopped", children: "Stopped" }), _jsx("option", { value: "errored", children: "Errored" })] }), _jsxs("button", { className: "button-primary", disabled: !selectedHost || processesBusy || selectedProcesses.length === 0, onClick: () => startLogs(selectedProcesses), type: "button", children: [_jsx(TerminalSquare, { className: "mr-2 size-4" }), "Open selected logs"] }), _jsxs("button", { className: "button-secondary", disabled: !selectedHost || processesBusy, onClick: () => {
                                                                         if (!selectedHostId) {
                                                                             return;
                                                                         }
@@ -480,13 +490,17 @@ export function Dashboard({ user, accessToken, onSessionUpdate }) {
                                                                             await loadProcessesForHost(selectedHostId);
                                                                         })();
                                                                     }, type: "button", children: [_jsx(RefreshCw, { className: "mr-2 size-4" }), "Refresh processes"] })] })] }), processesError ? (_jsx("div", { className: "px-6 py-5", children: _jsx("div", { className: "rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100", children: processesError }) })) : (_jsx("div", { className: "overflow-auto", children: _jsxs("table", { className: "min-w-full table-fixed", children: [_jsx("thead", { className: "bg-white/[0.03] text-left text-xs uppercase tracking-[0.18em] text-slate-500", children: _jsxs("tr", { children: [_jsx("th", { className: "w-12 px-6 py-4", children: _jsx("input", { checked: allFilteredSelected, onChange: () => setSelectedProcessIds(allFilteredSelected ? [] : filteredProcesses.map((process) => process.pmId)), type: "checkbox" }) }), _jsx("th", { className: "px-6 py-4", children: "Name" }), _jsx("th", { className: "px-6 py-4", children: "Status" }), _jsx("th", { className: "px-6 py-4", children: "PID" }), _jsx("th", { className: "px-6 py-4", children: "CPU" }), _jsx("th", { className: "px-6 py-4", children: "Memory" }), _jsx("th", { className: "px-6 py-4", children: "Uptime" }), _jsx("th", { className: "px-6 py-4", children: "Restarts" }), _jsx("th", { className: "px-6 py-4", children: "Action" })] }) }), _jsx("tbody", { className: "divide-y divide-white/5", children: processesBusy ? (_jsx("tr", { children: _jsx("td", { className: "px-6 py-12 text-center text-sm text-slate-400", colSpan: 9, children: "Fetching PM2 processes..." }) })) : filteredProcesses.length === 0 ? (_jsx("tr", { children: _jsx("td", { className: "px-6 py-12 text-center text-sm text-slate-500", colSpan: 9, children: "No processes match the current filters." }) })) : (filteredProcesses.map((process) => (_jsxs("tr", { className: "text-sm text-slate-200", children: [_jsx("td", { className: "px-6 py-4", children: _jsx("input", { checked: selectedProcessIds.includes(process.pmId), onChange: () => toggleProcessSelection(process.pmId), type: "checkbox" }) }), _jsxs("td", { className: "px-6 py-4", children: [_jsx("div", { className: "font-medium text-white", children: process.name }), _jsxs("div", { className: "mt-1 text-xs text-slate-500", children: ["PM2 ID ", process.pmId] })] }), _jsx("td", { className: "px-6 py-4", children: _jsx("span", { className: `rounded-full border px-3 py-1 text-xs ${statusBadge(process.status)}`, children: process.status }) }), _jsx("td", { className: "px-6 py-4", children: process.pid ?? "n/a" }), _jsxs("td", { className: "px-6 py-4", children: [process.cpu.toFixed(1), "%"] }), _jsx("td", { className: "px-6 py-4", children: formatBytes(process.memory) }), _jsx("td", { className: "px-6 py-4", children: formatUptime(process.uptime) }), _jsx("td", { className: "px-6 py-4", children: process.restartCount }), _jsx("td", { className: "px-6 py-4", children: _jsxs("button", { className: "button-secondary", onClick: () => startLogs(process), type: "button", children: [_jsx(TerminalSquare, { className: "mr-2 size-4" }), "Open logs"] }) })] }, process.pmId)))) })] }) })), _jsxs("div", { className: "border-t border-white/10 px-6 py-4 text-sm text-slate-400", children: [selectedProcessIds.length, " process", selectedProcessIds.length === 1 ? "" : "es", " selected"] })] })) : (_jsx(LogPanel, { excludePattern: excludePattern, filterError: filterError, host: selectedHost, includePattern: includePattern, initialLines: initialLines, lines: visibleLogLines, onClear: clearLogs, onDownload: () => {
-                                                const blob = new Blob([visibleLogLines.map((line) => line.line).join("\n")], {
-                                                    type: "text/plain;charset=utf-8"
-                                                });
+                                                const output = visibleLogLines
+                                                    .map((line) => `[${line.timestamp}] [${line.source}] [${line.processLabel}] ${line.line}`)
+                                                    .join("\n");
+                                                const blob = new Blob([output], { type: "text/plain;charset=utf-8" });
                                                 const url = URL.createObjectURL(blob);
                                                 const anchor = document.createElement("a");
                                                 anchor.href = url;
-                                                anchor.download = `${selectedHost?.name ?? "host"}-${activeLogProcess?.name ?? "logs"}.txt`;
+                                                const label = activeLogProcesses.length === 1
+                                                    ? activeLogProcesses[0].name
+                                                    : `${activeLogProcesses.length}-processes`;
+                                                anchor.download = `${selectedHost?.name ?? "host"}-${label}.txt`;
                                                 anchor.click();
                                                 URL.revokeObjectURL(url);
                                             }, onExcludePatternChange: setExcludePattern, onIncludePatternChange: setIncludePattern, onInitialLinesChange: setInitialLines, onPauseToggle: () => {
@@ -497,5 +511,5 @@ export function Dashboard({ user, accessToken, onSessionUpdate }) {
                                                     }
                                                     return next;
                                                 });
-                                            }, onRestart: () => activeLogProcess && startLogs(activeLogProcess), onScrollLockToggle: () => setScrollLock((current) => !current), paused: paused, process: activeLogProcess, scrollLock: scrollLock, status: logStatus, streamError: logError })), _jsxs("section", { className: "grid gap-4 md:grid-cols-3", children: [_jsxs("div", { className: "panel px-5 py-4", children: [_jsxs("div", { className: "flex items-center gap-3 text-slate-400", children: [_jsx(Cpu, { className: "size-4" }), "Process count"] }), _jsx("div", { className: "mt-3 text-3xl font-semibold text-white", children: processes.length })] }), _jsxs("div", { className: "panel px-5 py-4", children: [_jsxs("div", { className: "flex items-center gap-3 text-slate-400", children: [_jsx(TerminalSquare, { className: "size-4" }), "Stream state"] }), _jsx("div", { className: "mt-3 text-3xl font-semibold text-white", children: logStatus })] }), _jsxs("div", { className: "panel px-5 py-4", children: [_jsxs("div", { className: "flex items-center gap-3 text-slate-400", children: [_jsx(CircleAlert, { className: "size-4" }), "Buffer"] }), _jsx("div", { className: "mt-3 text-3xl font-semibold text-white", children: rawLogBufferRef.current.length })] })] })] })] })] }) })] }));
+                                            }, onRestart: () => activeLogProcesses.length > 0 && startLogs(activeLogProcesses), onScrollLockToggle: () => setScrollLock((current) => !current), paused: paused, processes: activeLogProcesses, scrollLock: scrollLock, status: logStatus, streamError: logError })), _jsxs("section", { className: "grid gap-4 md:grid-cols-3", children: [_jsxs("div", { className: "panel px-5 py-4", children: [_jsxs("div", { className: "flex items-center gap-3 text-slate-400", children: [_jsx(Cpu, { className: "size-4" }), "Process count"] }), _jsx("div", { className: "mt-3 text-3xl font-semibold text-white", children: processes.length })] }), _jsxs("div", { className: "panel px-5 py-4", children: [_jsxs("div", { className: "flex items-center gap-3 text-slate-400", children: [_jsx(TerminalSquare, { className: "size-4" }), "Stream state"] }), _jsx("div", { className: "mt-3 text-3xl font-semibold text-white", children: logStatus })] }), _jsxs("div", { className: "panel px-5 py-4", children: [_jsxs("div", { className: "flex items-center gap-3 text-slate-400", children: [_jsx(CircleAlert, { className: "size-4" }), "Buffer"] }), _jsx("div", { className: "mt-3 text-3xl font-semibold text-white", children: rawLogBufferRef.current.length })] })] })] })] })] }) })] }));
 }

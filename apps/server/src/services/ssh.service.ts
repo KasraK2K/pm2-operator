@@ -356,12 +356,16 @@ export async function createLogStream(
   initialLines: number
 ) {
   const session = await openShell(host);
-  const command = `pm2 logs ${escapeShellArg(processIdOrName)} --raw --lines ${initialLines}`;
+  const beginMarker = `__PM2LV_STREAM_BEGIN__${randomUUID().replace(/-/g, "")}`;
+  const command = wrapCommandForLoginShell(
+    `printf '${beginMarker}\\n'; exec pm2 logs ${escapeShellArg(processIdOrName)} --raw --lines ${initialLines}`
+  );
 
   session.stream.write("stty -echo >/dev/null 2>&1 || true\n");
   session.stream.write(`${command}\n`);
 
   return {
+    beginMarker,
     fingerprint: session.fingerprint,
     stream: session.stream,
     stop: async () => {

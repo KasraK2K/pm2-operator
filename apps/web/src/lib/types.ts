@@ -41,6 +41,8 @@ export interface LogLine {
   line: string;
   source: "stdout" | "stderr";
   timestamp: string;
+  processKey: string;
+  processLabel: string;
 }
 
 export interface ConnectionResult {
@@ -60,4 +62,3 @@ export interface HostPayload {
   passphrase?: string;
   tagIds: string[];
 }
-

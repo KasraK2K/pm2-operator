@@ -96,7 +96,7 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
   const [processesBusy, setProcessesBusy] = useState(false);
   const [processesError, setProcessesError] = useState<string | null>(null);
   const [selectedProcessIds, setSelectedProcessIds] = useState<number[]>([]);
-  const [activeLogProcess, setActiveLogProcess] = useState<Pm2Process | null>(null);
+  const [activeLogProcesses, setActiveLogProcesses] = useState<Pm2Process[]>([]);
   const [visibleLogLines, setVisibleLogLines] = useState<LogLine[]>([]);
   const [logStatus, setLogStatus] = useState("idle");
   const [logError, setLogError] = useState<string | null>(null);
@@ -197,8 +197,9 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
     }
 
     const filtered = source.filter((entry) => {
-      const matchesInclude = includeRegex ? includeRegex.test(entry.line) : true;
-      const matchesExclude = excludeRegex ? excludeRegex.test(entry.line) : false;
+      const haystack = `${entry.processLabel} ${entry.line}`;
+      const matchesInclude = includeRegex ? includeRegex.test(haystack) : true;
+      const matchesExclude = excludeRegex ? excludeRegex.test(haystack) : false;
       return matchesInclude && !matchesExclude;
     });
 
@@ -260,13 +261,13 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
     if (!selectedHostId) {
       setProcesses([]);
       setSelectedProcessIds([]);
-      setActiveLogProcess(null);
+      setActiveLogProcesses([]);
       setProcessesError(null);
       return;
     }
 
     setSelectedProcessIds([]);
-    setActiveLogProcess(null);
+    setActiveLogProcesses([]);
     clearLogs();
     stopLogs();
     void loadProcessesForHost(selectedHostId);
@@ -336,20 +337,30 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
     socketRef.current?.emit("logs:stop");
   }
 
-  function startLogs(process: Pm2Process) {
+  function startLogs(processSelection: Pm2Process | Pm2Process[]) {
     if (!selectedHostId) {
       return;
     }
 
+    const nextProcesses = Array.isArray(processSelection) ? processSelection : [processSelection];
+    const uniqueProcesses = [...new Map(nextProcesses.map((process) => [process.pmId, process])).values()];
+
+    if (uniqueProcesses.length === 0) {
+      return;
+    }
+
     setActiveTab("logs");
-    setActiveLogProcess(process);
+    setActiveLogProcesses(uniqueProcesses);
     setPaused(false);
     setLogError(null);
     clearLogs();
     setLogStatus("connecting");
     socketRef.current?.emit("logs:start", {
       hostId: selectedHostId,
-      processIdOrName: process.pmId,
+      targets: uniqueProcesses.map((process) => ({
+        processIdOrName: process.pmId,
+        label: process.name
+      })),
       initialLines
     });
   }
@@ -526,6 +537,7 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
   const allFilteredSelected =
     filteredProcesses.length > 0 &&
     filteredProcesses.every((process) => selectedProcessIds.includes(process.pmId));
+  const selectedProcesses = processes.filter((process) => selectedProcessIds.includes(process.pmId));
 
   return (
     <>
@@ -880,6 +892,15 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
                         <option value="errored">Errored</option>
                       </select>
                       <button
+                        className="button-primary"
+                        disabled={!selectedHost || processesBusy || selectedProcesses.length === 0}
+                        onClick={() => startLogs(selectedProcesses)}
+                        type="button"
+                      >
+                        <TerminalSquare className="mr-2 size-4" />
+                        Open selected logs
+                      </button>
+                      <button
                         className="button-secondary"
                         disabled={!selectedHost || processesBusy}
                         onClick={() => {
@@ -1001,13 +1022,21 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
                   lines={visibleLogLines}
                   onClear={clearLogs}
                   onDownload={() => {
-                    const blob = new Blob([visibleLogLines.map((line) => line.line).join("\n")], {
-                      type: "text/plain;charset=utf-8"
-                    });
+                    const output = visibleLogLines
+                      .map(
+                        (line) =>
+                          `[${line.timestamp}] [${line.source}] [${line.processLabel}] ${line.line}`
+                      )
+                      .join("\n");
+                    const blob = new Blob([output], { type: "text/plain;charset=utf-8" });
                     const url = URL.createObjectURL(blob);
                     const anchor = document.createElement("a");
                     anchor.href = url;
-                    anchor.download = `${selectedHost?.name ?? "host"}-${activeLogProcess?.name ?? "logs"}.txt`;
+                    const label =
+                      activeLogProcesses.length === 1
+                        ? activeLogProcesses[0].name
+                        : `${activeLogProcesses.length}-processes`;
+                    anchor.download = `${selectedHost?.name ?? "host"}-${label}.txt`;
                     anchor.click();
                     URL.revokeObjectURL(url);
                   }}
@@ -1023,10 +1052,10 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
                       return next;
                     });
                   }}
-                  onRestart={() => activeLogProcess && startLogs(activeLogProcess)}
+                  onRestart={() => activeLogProcesses.length > 0 && startLogs(activeLogProcesses)}
                   onScrollLockToggle={() => setScrollLock((current) => !current)}
                   paused={paused}
-                  process={activeLogProcess}
+                  processes={activeLogProcesses}
                   scrollLock={scrollLock}
                   status={logStatus}
                   streamError={logError}

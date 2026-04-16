@@ -6,7 +6,7 @@ import type { Host, LogLine, Pm2Process } from "../lib/types";
 
 interface LogPanelProps {
   host: Host | null;
-  process: Pm2Process | null;
+  processes: Pm2Process[];
   lines: LogLine[];
   paused: boolean;
   scrollLock: boolean;
@@ -28,7 +28,7 @@ interface LogPanelProps {
 
 export function LogPanel({
   host,
-  process,
+  processes,
   lines,
   paused,
   scrollLock,
@@ -63,13 +63,15 @@ export function LogPanel({
     viewport.scrollTop = viewport.scrollHeight;
   }, [lines, paused, scrollLock]);
 
-  if (!host || !process) {
+  if (!host || processes.length === 0) {
     return (
       <div className="panel flex min-h-[32rem] items-center justify-center p-8 text-center text-slate-400">
-        Select a host and choose a process from the Processes tab to begin streaming logs.
+        Select a host and choose one or more processes from the Processes tab to begin streaming logs.
       </div>
     );
   }
+
+  const title = processes.length === 1 ? processes[0].name : `${processes.length} selected processes`;
 
   return (
     <div className="panel overflow-hidden">
@@ -81,11 +83,21 @@ export function LogPanel({
               Live logs
             </div>
             <h3 className="mt-3 text-2xl font-semibold text-white">
-              {host.name} / {process.name}
+              {host.name} / {title}
             </h3>
             <p className="mt-2 text-sm text-slate-400">
-              Host fingerprint {host.hostFingerprint ?? "not pinned yet"} • status {status}
+              Host fingerprint {host.hostFingerprint ?? "not pinned yet"} | status {status}
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {processes.map((process) => (
+                <span
+                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300"
+                  key={process.pmId}
+                >
+                  {process.name}
+                </span>
+              ))}
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="button-secondary" onClick={onPauseToggle} type="button">
@@ -169,13 +181,14 @@ export function LogPanel({
           <div className="space-y-1">
             {lines.map((entry) => (
               <div
-                className={`grid grid-cols-[6.25rem_5rem_1fr] gap-3 rounded-xl px-3 py-2 ${
+                className={`grid grid-cols-[6.25rem_5rem_12rem_1fr] gap-3 rounded-xl px-3 py-2 ${
                   entry.source === "stderr" ? "bg-rose-400/5 text-rose-100" : "bg-white/[0.02]"
                 }`}
                 key={entry.sequence}
               >
                 <span className="text-slate-500">{formatTimestamp(entry.timestamp)}</span>
                 <span className="uppercase tracking-[0.18em] text-slate-500">{entry.source}</span>
+                <span className="truncate text-slate-400">{entry.processLabel}</span>
                 <span className="break-all whitespace-pre-wrap">{entry.line}</span>
               </div>
             ))}
@@ -185,4 +198,3 @@ export function LogPanel({
     </div>
   );
 }
-
