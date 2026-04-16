@@ -59,6 +59,13 @@ export const api = {
             token
         });
     },
+    updateSettings(token, payload) {
+        return request("/auth/settings", {
+            method: "PATCH",
+            token,
+            body: JSON.stringify(payload)
+        });
+    },
     getHosts(token) {
         return request("/hosts", { token });
     },

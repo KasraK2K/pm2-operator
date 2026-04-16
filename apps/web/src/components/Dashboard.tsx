@@ -1,11 +1,13 @@
 import {
   Activity,
-  CircleAlert,
-  Cpu,
+  ChevronDown,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
   PencilLine,
   Plus,
   RefreshCw,
+  Search,
   Server,
   Shield,
   Tag as TagIcon,
@@ -16,29 +18,45 @@ import { io, type Socket } from "socket.io-client";
 import { startTransition, useDeferredValue, useEffect, useRef, useState } from "react";
 
 import { api, ApiError } from "../lib/api";
+import {
+  readDashboardViewState,
+  writeDashboardViewState,
+  type DashboardTab
+} from "../lib/dashboard-view-state";
 import { formatBytes, formatLastTested, formatUptime } from "../lib/format";
+import { THEME_LOOKUP, type ThemeId } from "../lib/themes";
 import type { Host, HostPayload, LogLine, Pm2Process, Tag, User } from "../lib/types";
 import { HostModal } from "./HostModal";
 import { LogPanel } from "./LogPanel";
+import { ThemeMenu } from "./ThemeMenu";
 
 interface DashboardProps {
   user: User;
   accessToken: string;
+  activeThemeId: ThemeId;
+  onPreviewTheme: (themeId: ThemeId) => void;
+  onClearThemePreview: () => void;
   onSessionUpdate: (user: User | null, accessToken: string | null) => void;
 }
+
+type FlashTone = "success" | "error" | "info";
 
 const CLIENT_LOG_BUFFER_LIMIT = 2000;
 
 function statusBadge(status: string) {
   if (status === "online") {
-    return "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
+    return "border-transparent bg-[color:var(--success-soft)] text-[color:var(--success)]";
   }
 
   if (status === "stopped") {
-    return "border-amber-400/20 bg-amber-400/10 text-amber-200";
+    return "border-transparent bg-[color:var(--warning-soft)] text-[color:var(--warning)]";
   }
 
-  return "border-white/10 bg-white/5 text-slate-300";
+  if (status === "errored") {
+    return "border-transparent bg-[color:var(--danger-soft)] text-[color:var(--danger)]";
+  }
+
+  return "border-[color:var(--border)] bg-[color:var(--surface-soft)] text-[color:var(--text-muted)]";
 }
 
 function sortHosts(hosts: Host[]) {
@@ -69,58 +87,100 @@ function formatApiError(error: unknown, fallback: string) {
   return `${error.message} ${output.replace(/\s+/g, " ").slice(0, 220)}`;
 }
 
-export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps) {
+function getInitials(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+export function Dashboard({
+  user,
+  accessToken,
+  activeThemeId,
+  onPreviewTheme,
+  onClearThemePreview,
+  onSessionUpdate
+}: DashboardProps) {
+  const restoredViewRef = useRef(readDashboardViewState(user.id));
+  const restoredView = restoredViewRef.current;
+
   const [sessionToken, setSessionToken] = useState(accessToken);
   const [hosts, setHosts] = useState<Host[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
-  const [hostSearch, setHostSearch] = useState("");
-  const [selectedTagFilters, setSelectedTagFilters] = useState<string[]>([]);
-  const [selectedHostId, setSelectedHostId] = useState<string | null>(null);
+  const [hostSearch, setHostSearch] = useState(restoredView?.hostSearch ?? "");
+  const [selectedTagFilters, setSelectedTagFilters] = useState<string[]>(
+    restoredView?.selectedTagFilters ?? []
+  );
+  const [selectedHostId, setSelectedHostId] = useState<string | null>(
+    restoredView?.selectedHostId ?? null
+  );
   const [workspaceBusy, setWorkspaceBusy] = useState(true);
+  const [workspaceReady, setWorkspaceReady] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [hostModalOpen, setHostModalOpen] = useState(false);
   const [editingHost, setEditingHost] = useState<Host | null>(null);
   const [hostMutationBusy, setHostMutationBusy] = useState(false);
   const [hostActionBusyId, setHostActionBusyId] = useState<string | null>(null);
-  const [flash, setFlash] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [flash, setFlash] = useState<{ tone: FlashTone; text: string } | null>(null);
   const [tagDraft, setTagDraft] = useState<{ id: string | null; name: string; color: string }>({
     id: null,
     name: "",
     color: "#64748b"
   });
   const [tagBusy, setTagBusy] = useState(false);
-  const [activeTab, setActiveTab] = useState<"processes" | "logs">("processes");
+  const [tagManagerOpen, setTagManagerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<DashboardTab>(restoredView?.activeTab ?? "processes");
   const [processes, setProcesses] = useState<Pm2Process[]>([]);
-  const [processSearch, setProcessSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [processSearch, setProcessSearch] = useState(restoredView?.processSearch ?? "");
+  const [statusFilter, setStatusFilter] = useState(restoredView?.statusFilter ?? "all");
   const [processesBusy, setProcessesBusy] = useState(false);
   const [processesError, setProcessesError] = useState<string | null>(null);
-  const [selectedProcessIds, setSelectedProcessIds] = useState<number[]>([]);
+  const [selectedProcessIds, setSelectedProcessIds] = useState<number[]>(
+    restoredView?.selectedProcessIds ?? []
+  );
   const [activeLogProcesses, setActiveLogProcesses] = useState<Pm2Process[]>([]);
   const [visibleLogLines, setVisibleLogLines] = useState<LogLine[]>([]);
   const [logStatus, setLogStatus] = useState("idle");
   const [logError, setLogError] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
-  const [scrollLock, setScrollLock] = useState(false);
-  const [includePattern, setIncludePattern] = useState("");
-  const [excludePattern, setExcludePattern] = useState("");
+  const [scrollLock, setScrollLock] = useState(restoredView?.scrollLock ?? false);
+  const [includePattern, setIncludePattern] = useState(restoredView?.includePattern ?? "");
+  const [excludePattern, setExcludePattern] = useState(restoredView?.excludePattern ?? "");
   const [filterError, setFilterError] = useState<string | null>(null);
-  const [initialLines, setInitialLines] = useState(200);
+  const [initialLines, setInitialLines] = useState(restoredView?.initialLines ?? 200);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(restoredView?.sidebarCollapsed ?? false);
+  const [themeBusy, setThemeBusy] = useState(false);
+  const [themeError, setThemeError] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
+  const sessionTokenRef = useRef(accessToken);
   const pausedRef = useRef(false);
+  const activeLogProcessesRef = useRef<Pm2Process[]>([]);
   const rawLogBufferRef = useRef<LogLine[]>([]);
+  const previousHostIdRef = useRef<string | null>(restoredView?.selectedHostId ?? null);
+  const restoreLogIdsRef = useRef<number[]>(
+    restoredView?.activeTab === "logs" ? restoredView.activeLogProcessIds : []
+  );
+  const restoreAttemptedRef = useRef(false);
 
   const deferredHostSearch = useDeferredValue(hostSearch);
   const deferredProcessSearch = useDeferredValue(processSearch);
 
   useEffect(() => {
     setSessionToken(accessToken);
+    sessionTokenRef.current = accessToken;
   }, [accessToken]);
 
   useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
+
+  useEffect(() => {
+    activeLogProcessesRef.current = activeLogProcesses;
+  }, [activeLogProcesses]);
 
   useEffect(() => {
     if (!flash) {
@@ -158,13 +218,14 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
   async function refreshSession() {
     const session = await api.refresh();
     setSessionToken(session.accessToken);
+    sessionTokenRef.current = session.accessToken;
     onSessionUpdate(session.user, session.accessToken);
     return session.accessToken;
   }
 
   async function withSessionRetry<T>(operation: (token: string) => Promise<T>) {
     try {
-      return await operation(sessionToken);
+      return await operation(sessionTokenRef.current);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         try {
@@ -208,6 +269,47 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
     });
   }
 
+  function clearLogs() {
+    rawLogBufferRef.current = [];
+    setVisibleLogLines([]);
+    setLogError(null);
+    setFilterError(null);
+  }
+
+  function stopLogs() {
+    socketRef.current?.emit("logs:stop");
+  }
+
+  function startLogs(processSelection: Pm2Process | Pm2Process[], hostIdOverride?: string) {
+    const hostId = hostIdOverride ?? selectedHostId;
+
+    if (!hostId) {
+      return;
+    }
+
+    const nextProcesses = Array.isArray(processSelection) ? processSelection : [processSelection];
+    const uniqueProcesses = [...new Map(nextProcesses.map((process) => [process.pmId, process])).values()];
+
+    if (uniqueProcesses.length === 0) {
+      return;
+    }
+
+    setActiveTab("logs");
+    setActiveLogProcesses(uniqueProcesses);
+    setPaused(false);
+    setLogError(null);
+    clearLogs();
+    setLogStatus("connecting");
+    socketRef.current?.emit("logs:start", {
+      hostId,
+      targets: uniqueProcesses.map((process) => ({
+        processIdOrName: process.pmId,
+        label: process.name
+      })),
+      initialLines
+    });
+  }
+
   async function loadWorkspaceData(preferredHostId?: string | null) {
     setWorkspaceBusy(true);
     setWorkspaceError(null);
@@ -220,20 +322,29 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
 
       const nextHosts = sortHosts(hostsResponse.hosts);
       const nextTags = sortTags(tagsResponse.tags);
-
-      setHosts(nextHosts);
-      setTags(nextTags);
-
       const nextSelectedHostId =
         preferredHostId && nextHosts.some((host) => host.id === preferredHostId)
           ? preferredHostId
           : nextHosts[0]?.id ?? null;
 
+      if (preferredHostId && nextSelectedHostId !== preferredHostId) {
+        setFlash({
+          tone: "info",
+          text: "The previously selected host is no longer available. Switched to the next available host."
+        });
+      }
+
+      const validTagIds = new Set(nextTags.map((tag) => tag.id));
+
+      setHosts(nextHosts);
+      setTags(nextTags);
+      setSelectedTagFilters((current) => current.filter((tagId) => validTagIds.has(tagId)));
       setSelectedHostId(nextSelectedHostId);
     } catch (error) {
       setWorkspaceError(formatApiError(error, "Failed to load the workspace."));
     } finally {
       setWorkspaceBusy(false);
+      setWorkspaceReady(true);
     }
   }
 
@@ -242,9 +353,60 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
     setProcessesError(null);
 
     try {
+      const previousSelection = selectedProcessIds;
       const response = await withSessionRetry((token) => api.getProcesses(token, hostId));
-      setProcesses(response.processes);
+      const nextProcesses = response.processes;
+      const availableProcessIds = new Set(nextProcesses.map((process) => process.pmId));
+
+      setProcesses(nextProcesses);
+      setSelectedProcessIds((current) => current.filter((pmId) => availableProcessIds.has(pmId)));
+      setActiveLogProcesses((current) =>
+        current.filter((process) => availableProcessIds.has(process.pmId))
+      );
+
+      if (!restoreAttemptedRef.current) {
+        restoreAttemptedRef.current = true;
+
+        if (
+          previousSelection.length > 0 &&
+          previousSelection.some((pmId) => !availableProcessIds.has(pmId))
+        ) {
+          setFlash({
+            tone: "info",
+            text: "Some previously selected PM2 processes are no longer available on this host."
+          });
+        }
+
+        if (activeTab === "logs" && restoreLogIdsRef.current.length > 0) {
+          const restoredProcesses = nextProcesses.filter((process) =>
+            restoreLogIdsRef.current.includes(process.pmId)
+          );
+
+          if (restoredProcesses.length > 0) {
+            if (restoredProcesses.length !== restoreLogIdsRef.current.length) {
+              setFlash({
+                tone: "info",
+                text: "Some saved log targets were missing, but the remaining PM2 streams were restored."
+              });
+            }
+
+            startLogs(restoredProcesses, hostId);
+          } else {
+            setActiveTab("processes");
+            setFlash({
+              tone: "info",
+              text: "Saved log targets were not available anymore, so the dashboard returned to the Processes view."
+            });
+          }
+
+          restoreLogIdsRef.current = [];
+        }
+      }
     } catch (error) {
+      if (!restoreAttemptedRef.current) {
+        restoreAttemptedRef.current = true;
+      }
+
       setProcessesError(formatApiError(error, "Failed to load PM2 processes."));
       setProcesses([]);
     } finally {
@@ -253,26 +415,46 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
   }
 
   useEffect(() => {
-    void loadWorkspaceData(selectedHostId);
+    void loadWorkspaceData(restoredView?.selectedHostId ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    if (!workspaceReady) {
+      return;
+    }
+
     if (!selectedHostId) {
+      stopLogs();
       setProcesses([]);
       setSelectedProcessIds([]);
       setActiveLogProcesses([]);
       setProcessesError(null);
+      setLogStatus("idle");
+      clearLogs();
+      previousHostIdRef.current = null;
       return;
     }
 
-    setSelectedProcessIds([]);
-    setActiveLogProcesses([]);
-    clearLogs();
-    stopLogs();
+    const hostChanged = previousHostIdRef.current !== selectedHostId;
+    previousHostIdRef.current = selectedHostId;
+
+    if (hostChanged) {
+      stopLogs();
+      clearLogs();
+      setActiveLogProcesses([]);
+      setSelectedProcessIds([]);
+      setLogStatus("idle");
+      setLogError(null);
+
+      if (restoreAttemptedRef.current) {
+        setActiveTab("processes");
+      }
+    }
+
     void loadProcessesForHost(selectedHostId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedHostId]);
+  }, [selectedHostId, workspaceReady]);
 
   useEffect(() => {
     const socket = io("/", {
@@ -285,17 +467,18 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      if (logStatus === "disconnected") {
+      if (activeLogProcessesRef.current.length === 0) {
         setLogStatus("idle");
       }
     });
 
     socket.on("disconnect", () => {
-      setLogStatus("disconnected");
+      setLogStatus(activeLogProcessesRef.current.length > 0 ? "disconnected" : "idle");
     });
 
     socket.on("logs:status", (payload: { state: string }) => {
       setLogStatus(payload.state);
+
       if (payload.state === "stopped") {
         setPaused(false);
       }
@@ -326,52 +509,84 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [includePattern, excludePattern]);
 
-  function clearLogs() {
-    rawLogBufferRef.current = [];
-    setVisibleLogLines([]);
-    setLogError(null);
-    setFilterError(null);
-  }
-
-  function stopLogs() {
-    socketRef.current?.emit("logs:stop");
-  }
-
-  function startLogs(processSelection: Pm2Process | Pm2Process[]) {
-    if (!selectedHostId) {
+  useEffect(() => {
+    if (!workspaceReady) {
       return;
     }
 
-    const nextProcesses = Array.isArray(processSelection) ? processSelection : [processSelection];
-    const uniqueProcesses = [...new Map(nextProcesses.map((process) => [process.pmId, process])).values()];
-
-    if (uniqueProcesses.length === 0) {
+    if (!restoreAttemptedRef.current && activeTab === "logs" && restoreLogIdsRef.current.length > 0) {
       return;
     }
 
-    setActiveTab("logs");
-    setActiveLogProcesses(uniqueProcesses);
-    setPaused(false);
-    setLogError(null);
-    clearLogs();
-    setLogStatus("connecting");
-    socketRef.current?.emit("logs:start", {
-      hostId: selectedHostId,
-      targets: uniqueProcesses.map((process) => ({
-        processIdOrName: process.pmId,
-        label: process.name
-      })),
-      initialLines
+    writeDashboardViewState(user.id, {
+      version: 1,
+      selectedHostId,
+      activeTab,
+      hostSearch,
+      selectedTagFilters,
+      processSearch,
+      statusFilter,
+      selectedProcessIds,
+      activeLogProcessIds: activeLogProcesses.map((process) => process.pmId),
+      includePattern,
+      excludePattern,
+      initialLines,
+      scrollLock,
+      sidebarCollapsed
     });
-  }
+  }, [
+    activeLogProcesses,
+    activeTab,
+    excludePattern,
+    hostSearch,
+    includePattern,
+    initialLines,
+    processSearch,
+    scrollLock,
+    selectedHostId,
+    selectedProcessIds,
+    selectedTagFilters,
+    sidebarCollapsed,
+    statusFilter,
+    user.id
+  ]);
 
   async function handleSignOut() {
     try {
-      await api.logout(sessionToken);
+      await api.logout(sessionTokenRef.current);
     } catch {
       // no-op
     } finally {
       onSessionUpdate(null, null);
+    }
+  }
+
+  async function handleThemeSelect(themeId: ThemeId) {
+    if (themeId === user.settings.themeId) {
+      setThemeError(null);
+      return;
+    }
+
+    setThemeBusy(true);
+    setThemeError(null);
+
+    try {
+      const response = await withSessionRetry((token) => api.updateSettings(token, { themeId }));
+      onSessionUpdate(response.user, sessionTokenRef.current);
+      setFlash({
+        tone: "success",
+        text: `Theme updated to ${THEME_LOOKUP[themeId].label}.`
+      });
+    } catch (error) {
+      const message = formatApiError(error, "Failed to update theme.");
+      setThemeError(message);
+      setFlash({
+        tone: "error",
+        text: message
+      });
+      throw error;
+    } finally {
+      setThemeBusy(false);
     }
   }
 
@@ -534,6 +749,11 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
     );
   }
 
+  function handleHostSelection(hostId: string) {
+    setSelectedHostId(hostId);
+    setActiveTab("processes");
+  }
+
   const allFilteredSelected =
     filteredProcesses.length > 0 &&
     filteredProcesses.every((process) => selectedProcessIds.includes(process.pmId));
@@ -553,20 +773,39 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
         tags={tags}
       />
 
-      <div className="min-h-screen px-4 py-4 text-slate-100 md:px-6 md:py-6">
-        <div className="mx-auto max-w-[1600px] space-y-4">
-          <header className="panel flex flex-wrap items-center justify-between gap-4 px-6 py-5">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-sky-200">
-                <Shield className="size-4" />
-                PM2 Log Viewer
-              </div>
-              <h1 className="text-3xl font-semibold text-white">Remote PM2 operations cockpit</h1>
-            </div>
+      <div className="min-h-screen px-3 py-3 sm:px-4 sm:py-4">
+        <div className="mx-auto flex max-w-[1800px] flex-col gap-3">
+          <header className="panel flex flex-wrap items-center justify-between gap-3 px-4 py-3">
             <div className="flex items-center gap-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right">
-                <div className="text-sm text-slate-400">Signed in as</div>
-                <div className="text-sm font-medium text-white">{user.email}</div>
+              <div className="flex size-10 items-center justify-center rounded-[0.95rem] bg-[color:var(--accent-soft)] text-[color:var(--accent)]">
+                <Shield className="size-[18px]" />
+              </div>
+              <div>
+                <div className="section-kicker">Operations workspace</div>
+                <div className="mt-1 text-sm font-semibold text-[color:var(--text)]">
+                  PM2 Log Viewer
+                </div>
+              </div>
+              <span className="badge hidden sm:inline-flex">{hosts.length} hosts</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <ThemeMenu
+                activeThemeId={activeThemeId}
+                busy={themeBusy}
+                error={themeError}
+                onClearPreview={onClearThemePreview}
+                onPreviewTheme={onPreviewTheme}
+                onSelectTheme={handleThemeSelect}
+                savedThemeId={user.settings.themeId}
+              />
+              <div className="rounded-[0.95rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] px-3 py-2 text-right">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-[color:var(--text-soft)]">
+                  Signed in
+                </div>
+                <div className="max-w-[18rem] truncate text-sm font-medium text-[color:var(--text)]">
+                  {user.email}
+                </div>
               </div>
               <button className="button-secondary" onClick={handleSignOut} type="button">
                 <LogOut className="mr-2 size-4" />
@@ -576,167 +815,233 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
           </header>
 
           {flash ? (
-            <div
-              className={`rounded-2xl border px-4 py-3 text-sm ${
-                flash.tone === "success"
-                  ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
-                  : "border-rose-400/20 bg-rose-400/10 text-rose-100"
-              }`}
-            >
+            <div className="flash" data-tone={flash.tone}>
               {flash.text}
             </div>
           ) : null}
 
-          <div className="grid gap-4 xl:grid-cols-[20rem_1fr]">
-            <aside className="panel flex min-h-[calc(100vh-10rem)] flex-col overflow-hidden">
-              <div className="border-b border-white/10 p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Hosts</div>
-                    <div className="mt-1 text-xl font-semibold text-white">{filteredHosts.length}</div>
-                  </div>
-                  <button
-                    className="button-primary"
-                    onClick={() => {
-                      setEditingHost(null);
-                      setHostModalOpen(true);
-                    }}
-                    type="button"
-                  >
-                    <Plus className="mr-2 size-4" />
-                    Add host
-                  </button>
-                </div>
-                <input
-                  className="field mt-4"
-                  onChange={(event) => setHostSearch(event.target.value)}
-                  placeholder="Search name, host, or user"
-                  value={hostSearch}
-                />
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {tags.map((tag) => {
-                    const active = selectedTagFilters.includes(tag.id);
+          {workspaceError ? (
+            <div className="flash" data-tone="error">
+              {workspaceError}
+            </div>
+          ) : null}
 
-                    return (
-                      <button
-                        className={`rounded-full border px-3 py-1.5 text-xs transition ${
-                          active
-                            ? "border-sky-400/40 bg-sky-400/10 text-sky-100"
-                            : "border-white/10 bg-white/5 text-slate-300"
-                        }`}
-                        key={tag.id}
-                        onClick={() =>
-                          setSelectedTagFilters((current) =>
-                            current.includes(tag.id)
-                              ? current.filter((item) => item !== tag.id)
-                              : [...current, tag.id]
-                          )
-                        }
-                        type="button"
-                      >
-                        {tag.name}
-                      </button>
-                    );
-                  })}
+          <div className="flex min-h-[calc(100vh-8rem)] flex-col gap-3 lg:flex-row">
+            <aside
+              className={`panel flex min-h-0 shrink-0 flex-col overflow-hidden ${
+                sidebarCollapsed ? "lg:w-[5.25rem]" : "lg:w-[21rem]"
+              }`}
+            >
+              <div className="border-b border-[color:var(--border)] px-3 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className={`${sidebarCollapsed ? "hidden" : "block"}`}>
+                    <div className="section-kicker">Hosts</div>
+                    <div className="mt-1 text-sm font-semibold text-[color:var(--text)]">
+                      {filteredHosts.length} visible
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      className="button-ghost h-8 w-8 p-0"
+                      onClick={() => setSidebarCollapsed((current) => !current)}
+                      title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                      type="button"
+                    >
+                      {sidebarCollapsed ? (
+                        <PanelLeftOpen className="size-4" />
+                      ) : (
+                        <PanelLeftClose className="size-4" />
+                      )}
+                    </button>
+                    <button
+                      className={`${sidebarCollapsed ? "button-ghost h-8 w-8 p-0" : "button-primary"}`}
+                      onClick={() => {
+                        setEditingHost(null);
+                        setHostModalOpen(true);
+                      }}
+                      title="Add host"
+                      type="button"
+                    >
+                      <Plus className={`size-4 ${sidebarCollapsed ? "" : "mr-2"}`} />
+                      {sidebarCollapsed ? <span className="sr-only">Add host</span> : "Add host"}
+                    </button>
+                  </div>
                 </div>
+
+                {!sidebarCollapsed ? (
+                  <>
+                    <div className="relative mt-3">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[color:var(--text-soft)]" />
+                      <input
+                        className="field pl-9"
+                        onChange={(event) => setHostSearch(event.target.value)}
+                        placeholder="Search name, host, or user"
+                        value={hostSearch}
+                      />
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {tags.map((tag) => {
+                        const active = selectedTagFilters.includes(tag.id);
+
+                        return (
+                          <button
+                            className={`${active ? "button-secondary border-[color:var(--border-strong)] bg-[color:var(--surface-strong)]" : "button-ghost"} px-2 py-1 text-xs`}
+                            key={tag.id}
+                            onClick={() =>
+                              setSelectedTagFilters((current) =>
+                                current.includes(tag.id)
+                                  ? current.filter((item) => item !== tag.id)
+                                  : [...current, tag.id]
+                              )
+                            }
+                            type="button"
+                          >
+                            <span
+                              className="size-2 rounded-full"
+                              style={{ backgroundColor: tag.color ?? "#64748b" }}
+                            />
+                            {tag.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : null}
               </div>
 
-              <div className="min-h-0 flex-1 overflow-auto p-3">
-                {workspaceBusy ? (
-                  <div className="flex h-full items-center justify-center text-sm text-slate-400">
-                    Loading workspace...
-                  </div>
-                ) : workspaceError ? (
-                  <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-100">
-                    {workspaceError}
+              <div className="min-h-0 flex-1 overflow-auto px-2 py-2">
+                {workspaceBusy && hosts.length === 0 ? (
+                  <div className="space-y-2 p-2">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <div
+                        className="panel-soft h-16 animate-pulse"
+                        key={`host-skeleton-${index}`}
+                      />
+                    ))}
                   </div>
                 ) : filteredHosts.length === 0 ? (
-                  <div className="flex h-full items-center justify-center text-center text-sm text-slate-500">
-                    Add an SSH host to begin.
+                  <div className="flex h-full items-center justify-center p-4 text-center text-sm text-[color:var(--text-muted)]">
+                    {hosts.length === 0
+                      ? "Add your first SSH host to begin remote PM2 monitoring."
+                      : "No hosts match the current search or tag filters."}
+                  </div>
+                ) : sidebarCollapsed ? (
+                  <div className="space-y-2">
+                    {filteredHosts.map((host) => (
+                      <button
+                        className={`flex h-12 w-full items-center justify-center rounded-[0.95rem] border text-xs font-semibold ${
+                          host.id === selectedHostId
+                            ? "border-[color:var(--border-strong)] bg-[color:var(--accent-soft)] text-[color:var(--text)]"
+                            : "border-transparent bg-transparent text-[color:var(--text-muted)] hover:bg-[color:var(--surface-soft)]"
+                        }`}
+                        key={host.id}
+                        onClick={() => handleHostSelection(host.id)}
+                        title={host.name}
+                        type="button"
+                      >
+                        {getInitials(host.name) || "?"}
+                      </button>
+                    ))}
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-1">
                     {filteredHosts.map((host) => {
-                      const active = selectedHostId === host.id;
                       const busy = hostActionBusyId === host.id;
 
                       return (
                         <div
-                          className={`w-full rounded-3xl border p-4 text-left transition ${
-                            active
-                              ? "border-sky-400/30 bg-sky-400/10"
-                              : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
-                          }`}
+                          className="host-row group cursor-pointer"
+                          data-active={host.id === selectedHostId}
                           key={host.id}
-                          onClick={() => setSelectedHostId(host.id)}
+                          onClick={() => handleHostSelection(host.id)}
                           onKeyDown={(event) => {
                             if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault();
-                              setSelectedHostId(host.id);
+                              handleHostSelection(host.id);
                             }
                           }}
                           role="button"
                           tabIndex={0}
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="font-medium text-white">{host.name}</div>
-                              <div className="mt-1 text-sm text-slate-400">
+                          <div className="flex items-start gap-3">
+                            <div className="flex size-10 shrink-0 items-center justify-center rounded-[0.95rem] bg-[color:var(--surface-strong)] text-xs font-semibold text-[color:var(--text)]">
+                              {getInitials(host.name) || "?"}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <div className="truncate text-sm font-semibold text-[color:var(--text)]">
+                                  {host.name}
+                                </div>
+                                <span className="badge">
+                                  {host.authType === "PASSWORD" ? "Password" : "Key"}
+                                </span>
+                              </div>
+                              <div className="mt-1 truncate text-xs text-[color:var(--text-muted)]">
                                 {host.username}@{host.host}:{host.port}
                               </div>
+                              {host.tags.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                  {host.tags.slice(0, 4).map((tag) => (
+                                    <span className="badge px-1.5 py-0.5 text-[10px]" key={tag.id}>
+                                      <span
+                                        className="size-1.5 rounded-full"
+                                        style={{ backgroundColor: tag.color ?? "#64748b" }}
+                                      />
+                                      {tag.name}
+                                    </span>
+                                  ))}
+                                  {host.tags.length > 4 ? (
+                                    <span className="badge px-1.5 py-0.5 text-[10px]">
+                                      +{host.tags.length - 4}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                              <div className="mt-2 text-[11px] text-[color:var(--text-soft)]">
+                                {formatLastTested(host.lastTestedAt)}
+                              </div>
                             </div>
-                            <Server className="size-4 text-slate-500" />
-                          </div>
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {host.tags.map((tag) => (
-                              <span
-                                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-300"
-                                key={tag.id}
+
+                            <div className="flex shrink-0 items-start gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                              <button
+                                className="button-ghost h-8 w-8 p-0"
+                                disabled={busy}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void handleHostTest(host);
+                                }}
+                                title="Test connection"
+                                type="button"
                               >
-                                {tag.name}
-                              </span>
-                            ))}
-                          </div>
-                          <div className="mt-4 text-xs text-slate-500">
-                            {formatLastTested(host.lastTestedAt)}
-                          </div>
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            <button
-                              className="button-secondary"
-                              disabled={busy}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleHostTest(host);
-                              }}
-                              type="button"
-                            >
-                              <RefreshCw className="mr-2 size-4" />
-                              Test
-                            </button>
-                            <button
-                              className="button-secondary"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setEditingHost(host);
-                                setHostModalOpen(true);
-                              }}
-                              type="button"
-                            >
-                              <PencilLine className="mr-2 size-4" />
-                              Edit
-                            </button>
-                            <button
-                              className="button-secondary"
-                              disabled={busy}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleHostDelete(host);
-                              }}
-                              type="button"
-                            >
-                              <Trash2 className="mr-2 size-4" />
-                              Delete
-                            </button>
+                                <RefreshCw className="size-4" />
+                              </button>
+                              <button
+                                className="button-ghost h-8 w-8 p-0"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setEditingHost(host);
+                                  setHostModalOpen(true);
+                                }}
+                                title="Edit host"
+                                type="button"
+                              >
+                                <PencilLine className="size-4" />
+                              </button>
+                              <button
+                                className="button-ghost h-8 w-8 p-0"
+                                disabled={busy}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void handleHostDelete(host);
+                                }}
+                                title="Delete host"
+                                type="button"
+                              >
+                                <Trash2 className="size-4" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -745,114 +1050,138 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
                 )}
               </div>
 
-              <div className="border-t border-white/10 p-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-white">
-                  <TagIcon className="size-4 text-slate-500" />
-                  Tag manager
-                </div>
-                <div className="space-y-3">
-                  <div className="grid gap-3">
-                    <input
-                      className="field"
-                      onChange={(event) =>
-                        setTagDraft((current) => ({ ...current, name: event.target.value }))
-                      }
-                      placeholder="Tag name"
-                      value={tagDraft.name}
+              {!sidebarCollapsed ? (
+                <div className="border-t border-[color:var(--border)] px-3 py-3">
+                  <button
+                    className="button-ghost w-full justify-between px-0"
+                    onClick={() => setTagManagerOpen((current) => !current)}
+                    type="button"
+                  >
+                    <span className="flex items-center gap-2">
+                      <TagIcon className="size-4" />
+                      Tags
+                    </span>
+                    <ChevronDown
+                      className={`size-4 transition ${tagManagerOpen ? "rotate-180" : ""}`}
                     />
-                    <div className="flex gap-3">
-                      <input
-                        className="h-12 w-16 rounded-2xl border border-white/10 bg-transparent p-2"
-                        onChange={(event) =>
-                          setTagDraft((current) => ({ ...current, color: event.target.value }))
-                        }
-                        type="color"
-                        value={tagDraft.color}
-                      />
-                      <button
-                        className="button-primary flex-1"
-                        disabled={tagBusy}
-                        onClick={() => void handleTagSubmit()}
-                        type="button"
-                      >
-                        {tagDraft.id ? "Update tag" : "Create tag"}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    {tags.map((tag) => (
-                      <div
-                        className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2"
-                        key={tag.id}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span
-                            className="size-3 rounded-full"
-                            style={{ backgroundColor: tag.color ?? "#64748b" }}
-                          />
-                          <span className="text-sm text-slate-200">{tag.name}</span>
-                        </div>
-                        <div className="flex gap-1">
-                          <button
-                            className="button-ghost"
-                            onClick={() =>
-                              setTagDraft({
-                                id: tag.id,
-                                name: tag.name,
-                                color: tag.color ?? "#64748b"
-                              })
-                            }
-                            type="button"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="button-ghost"
-                            onClick={() => void handleTagDelete(tag)}
-                            type="button"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </aside>
+                  </button>
 
-            <main className="space-y-4">
-              <section className="panel px-6 py-5">
+                  {tagManagerOpen ? (
+                    <div className="mt-3 space-y-3">
+                      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_auto]">
+                        <input
+                          className="field"
+                          onChange={(event) =>
+                            setTagDraft((current) => ({ ...current, name: event.target.value }))
+                          }
+                          placeholder="Tag name"
+                          value={tagDraft.name}
+                        />
+                        <input
+                          className="h-[2.65rem] w-full rounded-[0.9rem] border border-[color:var(--border)] bg-[color:var(--surface-strong)] p-1.5"
+                          onChange={(event) =>
+                            setTagDraft((current) => ({ ...current, color: event.target.value }))
+                          }
+                          type="color"
+                          value={tagDraft.color}
+                        />
+                        <button
+                          className="button-primary justify-center"
+                          disabled={tagBusy}
+                          onClick={() => void handleTagSubmit()}
+                          type="button"
+                        >
+                          {tagDraft.id ? "Update" : "Create"}
+                        </button>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {tags.length === 0 ? (
+                          <div className="text-xs text-[color:var(--text-muted)]">
+                            Create tags to filter hosts by role, environment, or team.
+                          </div>
+                        ) : (
+                          tags.map((tag) => (
+                            <div
+                              className="panel-soft flex items-center justify-between gap-3 px-3 py-2"
+                              key={tag.id}
+                            >
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span
+                                  className="size-2.5 rounded-full"
+                                  style={{ backgroundColor: tag.color ?? "#64748b" }}
+                                />
+                                <span className="truncate text-sm text-[color:var(--text)]">
+                                  {tag.name}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  className="button-ghost px-2 py-1 text-xs"
+                                  onClick={() =>
+                                    setTagDraft({
+                                      id: tag.id,
+                                      name: tag.name,
+                                      color: tag.color ?? "#64748b"
+                                    })
+                                  }
+                                  type="button"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  className="button-ghost px-2 py-1 text-xs"
+                                  onClick={() => void handleTagDelete(tag)}
+                                  type="button"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </aside>
+            <main className="flex min-h-0 flex-1 flex-col gap-3">
+              <section className="panel px-4 py-3">
                 {selectedHost ? (
-                  <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
-                    <div>
-                      <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-                        <Activity className="size-4" />
-                        Active host
-                      </div>
-                      <h2 className="mt-3 text-3xl font-semibold text-white">{selectedHost.name}</h2>
-                      <div className="mt-2 text-sm text-slate-400">
-                        {selectedHost.username}@{selectedHost.host}:{selectedHost.port}
-                      </div>
-                      <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-300">
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="section-kicker">Active host</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <h2 className="truncate text-lg font-semibold text-[color:var(--text)]">
+                          {selectedHost.name}
+                        </h2>
+                        <span className="badge">
                           {selectedHost.authType === "PASSWORD" ? "Password auth" : "Private key"}
                         </span>
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--text-muted)]">
+                        <span>
+                          {selectedHost.username}@{selectedHost.host}:{selectedHost.port}
+                        </span>
+                        <span className="max-w-[28rem] truncate" title={selectedHost.hostFingerprint ?? ""}>
                           Fingerprint {selectedHost.hostFingerprint ?? "not pinned"}
                         </span>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 lg:justify-end">
+
+                    <div className="flex items-center gap-1 rounded-[0.95rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] p-1">
                       <button
-                        className={`button-ghost ${activeTab === "processes" ? "bg-white/10 text-white" : ""}`}
+                        className="button-tab"
+                        data-active={activeTab === "processes"}
                         onClick={() => setActiveTab("processes")}
                         type="button"
                       >
                         Processes
                       </button>
                       <button
-                        className={`button-ghost ${activeTab === "logs" ? "bg-white/10 text-white" : ""}`}
+                        className="button-tab"
+                        data-active={activeTab === "logs"}
                         onClick={() => setActiveTab("logs")}
                         type="button"
                       >
@@ -861,28 +1190,29 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
                     </div>
                   </div>
                 ) : (
-                  <div className="text-sm text-slate-400">Select a host to inspect its PM2 processes.</div>
+                  <div className="flex items-center gap-3 text-sm text-[color:var(--text-muted)]">
+                    <Server className="size-4" />
+                    Select a host to inspect PM2 processes and stream logs.
+                  </div>
                 )}
               </section>
 
               {activeTab === "processes" ? (
-                <section className="panel overflow-hidden">
-                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
-                    <div>
-                      <h3 className="text-2xl font-semibold text-white">PM2 processes</h3>
-                      <p className="mt-2 text-sm text-slate-400">
-                        Searchable process inventory with status filtering and log shortcuts.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      <input
-                        className="field min-w-56"
-                        onChange={(event) => setProcessSearch(event.target.value)}
-                        placeholder="Search processes"
-                        value={processSearch}
-                      />
+                <section className="panel flex min-h-[26rem] flex-1 flex-col overflow-hidden">
+                  <div className="border-b border-[color:var(--border)] px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="relative min-w-[15rem] flex-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[color:var(--text-soft)]" />
+                        <input
+                          className="field pl-9"
+                          onChange={(event) => setProcessSearch(event.target.value)}
+                          placeholder="Search PM2 processes"
+                          value={processSearch}
+                        />
+                      </div>
+
                       <select
-                        className="field min-w-40"
+                        className="field w-auto min-w-[8.5rem]"
                         onChange={(event) => setStatusFilter(event.target.value)}
                         value={statusFilter}
                       >
@@ -891,6 +1221,7 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
                         <option value="stopped">Stopped</option>
                         <option value="errored">Errored</option>
                       </select>
+
                       <button
                         className="button-primary"
                         disabled={!selectedHost || processesBusy || selectedProcesses.length === 0}
@@ -900,6 +1231,7 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
                         <TerminalSquare className="mr-2 size-4" />
                         Open selected logs
                       </button>
+
                       <button
                         className="button-secondary"
                         disabled={!selectedHost || processesBusy}
@@ -908,112 +1240,128 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
                             return;
                           }
 
-                          void (async () => {
-                            await loadWorkspaceData(selectedHostId);
-                            await loadProcessesForHost(selectedHostId);
-                          })();
+                          void loadProcessesForHost(selectedHostId);
                         }}
                         type="button"
                       >
                         <RefreshCw className="mr-2 size-4" />
-                        Refresh processes
+                        Refresh
                       </button>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="badge">
+                        <Activity className="size-3.5" />
+                        {processes.length} total
+                      </span>
+                      <span className="badge">{filteredProcesses.length} visible</span>
+                      <span className="badge">{selectedProcessIds.length} selected</span>
+                      {processesBusy ? <span className="badge">Refreshing...</span> : null}
                     </div>
                   </div>
 
                   {processesError ? (
-                    <div className="px-6 py-5">
-                      <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+                    <div className="px-4 py-3">
+                      <div className="flash" data-tone="error">
                         {processesError}
                       </div>
                     </div>
-                  ) : (
-                    <div className="overflow-auto">
-                      <table className="min-w-full table-fixed">
-                        <thead className="bg-white/[0.03] text-left text-xs uppercase tracking-[0.18em] text-slate-500">
-                          <tr>
-                            <th className="w-12 px-6 py-4">
-                              <input
-                                checked={allFilteredSelected}
-                                onChange={() =>
-                                  setSelectedProcessIds(
-                                    allFilteredSelected ? [] : filteredProcesses.map((process) => process.pmId)
-                                  )
-                                }
-                                type="checkbox"
-                              />
-                            </th>
-                            <th className="px-6 py-4">Name</th>
-                            <th className="px-6 py-4">Status</th>
-                            <th className="px-6 py-4">PID</th>
-                            <th className="px-6 py-4">CPU</th>
-                            <th className="px-6 py-4">Memory</th>
-                            <th className="px-6 py-4">Uptime</th>
-                            <th className="px-6 py-4">Restarts</th>
-                            <th className="px-6 py-4">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                          {processesBusy ? (
-                            <tr>
-                              <td className="px-6 py-12 text-center text-sm text-slate-400" colSpan={9}>
-                                Fetching PM2 processes...
-                              </td>
-                            </tr>
-                          ) : filteredProcesses.length === 0 ? (
-                            <tr>
-                              <td className="px-6 py-12 text-center text-sm text-slate-500" colSpan={9}>
-                                No processes match the current filters.
-                              </td>
-                            </tr>
-                          ) : (
-                            filteredProcesses.map((process) => (
-                              <tr className="text-sm text-slate-200" key={process.pmId}>
-                                <td className="px-6 py-4">
-                                  <input
-                                    checked={selectedProcessIds.includes(process.pmId)}
-                                    onChange={() => toggleProcessSelection(process.pmId)}
-                                    type="checkbox"
-                                  />
-                                </td>
-                                <td className="px-6 py-4">
-                                  <div className="font-medium text-white">{process.name}</div>
-                                  <div className="mt-1 text-xs text-slate-500">PM2 ID {process.pmId}</div>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <span className={`rounded-full border px-3 py-1 text-xs ${statusBadge(process.status)}`}>
-                                    {process.status}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4">{process.pid ?? "n/a"}</td>
-                                <td className="px-6 py-4">{process.cpu.toFixed(1)}%</td>
-                                <td className="px-6 py-4">{formatBytes(process.memory)}</td>
-                                <td className="px-6 py-4">{formatUptime(process.uptime)}</td>
-                                <td className="px-6 py-4">{process.restartCount}</td>
-                                <td className="px-6 py-4">
-                                  <button
-                                    className="button-secondary"
-                                    onClick={() => startLogs(process)}
-                                    type="button"
-                                  >
-                                    <TerminalSquare className="mr-2 size-4" />
-                                    Open logs
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                  ) : null}
 
-                  <div className="border-t border-white/10 px-6 py-4 text-sm text-slate-400">
-                    {selectedProcessIds.length} process{selectedProcessIds.length === 1 ? "" : "es"} selected
+                  <div className="min-h-0 flex-1 overflow-auto">
+                    <table className="min-w-full table-fixed">
+                      <thead className="border-b border-[color:var(--border)] text-left text-[11px] uppercase tracking-[0.18em] text-[color:var(--text-soft)]">
+                        <tr>
+                          <th className="w-11 px-4 py-3">
+                            <input
+                              checked={allFilteredSelected}
+                              onChange={() =>
+                                setSelectedProcessIds(
+                                  allFilteredSelected ? [] : filteredProcesses.map((process) => process.pmId)
+                                )
+                              }
+                              type="checkbox"
+                            />
+                          </th>
+                          <th className="px-4 py-3">Name</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">PID</th>
+                          <th className="px-4 py-3">CPU</th>
+                          <th className="px-4 py-3">Memory</th>
+                          <th className="px-4 py-3">Uptime</th>
+                          <th className="px-4 py-3">Restarts</th>
+                          <th className="px-4 py-3">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {processesBusy && filteredProcesses.length === 0 ? (
+                          <tr>
+                            <td className="px-4 py-12 text-center text-sm text-[color:var(--text-muted)]" colSpan={9}>
+                              Fetching PM2 processes...
+                            </td>
+                          </tr>
+                        ) : filteredProcesses.length === 0 ? (
+                          <tr>
+                            <td className="px-4 py-12 text-center text-sm text-[color:var(--text-muted)]" colSpan={9}>
+                              No processes match the current filters.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredProcesses.map((process) => (
+                            <tr
+                              className="border-b border-[color:var(--border)] text-sm text-[color:var(--text-muted)] hover:bg-[color:var(--surface-soft)]"
+                              key={process.pmId}
+                            >
+                              <td className="px-4 py-2.5">
+                                <input
+                                  checked={selectedProcessIds.includes(process.pmId)}
+                                  onChange={() => toggleProcessSelection(process.pmId)}
+                                  type="checkbox"
+                                />
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <div className="font-medium text-[color:var(--text)]">{process.name}</div>
+                                <div className="mt-0.5 text-[11px] text-[color:var(--text-soft)]">
+                                  PM2 ID {process.pmId}
+                                </div>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <span
+                                  className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-medium ${statusBadge(process.status)}`}
+                                >
+                                  {process.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5">{process.pid ?? "n/a"}</td>
+                              <td className="px-4 py-2.5">{process.cpu.toFixed(1)}%</td>
+                              <td className="px-4 py-2.5">{formatBytes(process.memory)}</td>
+                              <td className="px-4 py-2.5">{formatUptime(process.uptime)}</td>
+                              <td className="px-4 py-2.5">{process.restartCount}</td>
+                              <td className="px-4 py-2.5">
+                                <button
+                                  className="button-secondary px-2.5 py-1.5 text-xs"
+                                  onClick={() => startLogs(process)}
+                                  type="button"
+                                >
+                                  Logs
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 border-t border-[color:var(--border)] px-4 py-2 text-xs text-[color:var(--text-muted)]">
+                    <span>{selectedProcessIds.length} process{selectedProcessIds.length === 1 ? "" : "es"} selected</span>
+                    <span className="badge">{selectedHost ? selectedHost.host : "No host selected"}</span>
+                    <span className="badge">Status filter: {statusFilter}</span>
                   </div>
                 </section>
               ) : (
                 <LogPanel
+                  bufferedLineCount={rawLogBufferRef.current.length}
                   excludePattern={excludePattern}
                   filterError={filterError}
                   host={selectedHost}
@@ -1046,9 +1394,11 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
                   onPauseToggle={() => {
                     setPaused((current) => {
                       const next = !current;
+
                       if (!next) {
                         applyLogFilters(rawLogBufferRef.current);
                       }
+
                       return next;
                     });
                   }}
@@ -1061,32 +1411,6 @@ export function Dashboard({ user, accessToken, onSessionUpdate }: DashboardProps
                   streamError={logError}
                 />
               )}
-
-              <section className="grid gap-4 md:grid-cols-3">
-                <div className="panel px-5 py-4">
-                  <div className="flex items-center gap-3 text-slate-400">
-                    <Cpu className="size-4" />
-                    Process count
-                  </div>
-                  <div className="mt-3 text-3xl font-semibold text-white">{processes.length}</div>
-                </div>
-                <div className="panel px-5 py-4">
-                  <div className="flex items-center gap-3 text-slate-400">
-                    <TerminalSquare className="size-4" />
-                    Stream state
-                  </div>
-                  <div className="mt-3 text-3xl font-semibold text-white">{logStatus}</div>
-                </div>
-                <div className="panel px-5 py-4">
-                  <div className="flex items-center gap-3 text-slate-400">
-                    <CircleAlert className="size-4" />
-                    Buffer
-                  </div>
-                  <div className="mt-3 text-3xl font-semibold text-white">
-                    {rawLogBufferRef.current.length}
-                  </div>
-                </div>
-              </section>
             </main>
           </div>
         </div>

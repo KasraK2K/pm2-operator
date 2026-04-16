@@ -53,17 +53,18 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-8 backdrop-blur-sm">
-      <div className="panel w-full max-w-3xl p-6">
-        <div className="mb-6 flex items-start justify-between gap-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--surface-overlay)] px-4 py-6 backdrop-blur-md">
+      <div className="panel w-full max-w-3xl p-5">
+        <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-semibold text-white">
-              {host ? "Edit SSH host" : "Add SSH host"}
+            <div className="section-kicker">SSH host</div>
+            <h2 className="mt-2 text-2xl font-semibold text-[color:var(--text)]">
+              {host ? "Edit connection" : "Add connection"}
             </h2>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
               {host
-                ? "Update connection details. Leave secrets blank to keep the current encrypted value."
-                : "Create a new SSH host and store its credentials encrypted at rest."}
+                ? "Leave secret fields blank to keep the currently encrypted values."
+                : "Create a new remote PM2 target and store its SSH secrets encrypted at rest."}
             </p>
           </div>
           <button className="button-ghost" onClick={onClose} type="button">
@@ -78,7 +79,7 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
             await onSubmit(form, host?.id);
           }}
         >
-          <label className="space-y-2 text-sm text-slate-300">
+          <label className="space-y-2 text-sm text-[color:var(--text-muted)]">
             <span>Name</span>
             <input
               className="field"
@@ -86,7 +87,8 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
               value={form.name}
             />
           </label>
-          <label className="space-y-2 text-sm text-slate-300">
+
+          <label className="space-y-2 text-sm text-[color:var(--text-muted)]">
             <span>Host</span>
             <input
               className="field"
@@ -94,7 +96,8 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
               value={form.host}
             />
           </label>
-          <label className="space-y-2 text-sm text-slate-300">
+
+          <label className="space-y-2 text-sm text-[color:var(--text-muted)]">
             <span>Port</span>
             <input
               className="field"
@@ -106,7 +109,8 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
               value={form.port}
             />
           </label>
-          <label className="space-y-2 text-sm text-slate-300">
+
+          <label className="space-y-2 text-sm text-[color:var(--text-muted)]">
             <span>Username</span>
             <input
               className="field"
@@ -116,7 +120,8 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
               value={form.username}
             />
           </label>
-          <label className="space-y-2 text-sm text-slate-300">
+
+          <label className="space-y-2 text-sm text-[color:var(--text-muted)]">
             <span>Authentication</span>
             <select
               className="field"
@@ -132,10 +137,11 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
               <option value="PRIVATE_KEY">Private key</option>
             </select>
           </label>
-          <label className="space-y-2 text-sm text-slate-300">
+
+          <label className="space-y-2 text-sm text-[color:var(--text-muted)]">
             <span>Tags</span>
             <select
-              className="field min-h-28"
+              className="field min-h-32"
               multiple
               onChange={(event) =>
                 setForm((current) => ({
@@ -143,6 +149,7 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
                   tagIds: Array.from(event.target.selectedOptions).map((option) => option.value)
                 }))
               }
+              size={Math.min(Math.max(tags.length, 4), 8)}
               value={form.tagIds}
             >
               {tags.map((tag) => (
@@ -154,34 +161,34 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
           </label>
 
           {form.authType === "PASSWORD" ? (
-            <label className="space-y-2 text-sm text-slate-300 md:col-span-2">
+            <label className="space-y-2 text-sm text-[color:var(--text-muted)] md:col-span-2">
               <span>Password</span>
               <input
                 className="field"
                 onChange={(event) =>
                   setForm((current) => ({ ...current, password: event.target.value }))
                 }
-                placeholder={host ? "Leave blank to keep current password" : "Enter SSH password"}
+                placeholder={host ? "Leave blank to keep the current password" : "Enter SSH password"}
                 type="password"
                 value={form.password ?? ""}
               />
             </label>
           ) : (
             <>
-              <label className="space-y-2 text-sm text-slate-300 md:col-span-2">
+              <label className="space-y-2 text-sm text-[color:var(--text-muted)] md:col-span-2">
                 <span>Private key</span>
                 <textarea
-                  className="field min-h-40"
+                  className="field min-h-44"
                   onChange={(event) =>
                     setForm((current) => ({ ...current, privateKey: event.target.value }))
                   }
                   placeholder={
-                    host ? "Leave blank to keep current private key" : "Paste PEM or OpenSSH key"
+                    host ? "Leave blank to keep the current private key" : "Paste PEM or OpenSSH key"
                   }
                   value={form.privateKey ?? ""}
                 />
               </label>
-              <label className="space-y-2 text-sm text-slate-300 md:col-span-2">
+              <label className="space-y-2 text-sm text-[color:var(--text-muted)] md:col-span-2">
                 <span>Passphrase</span>
                 <input
                   className="field"
@@ -196,7 +203,7 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
             </>
           )}
 
-          <div className="md:col-span-2 flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-2 pt-2 md:col-span-2">
             <button className="button-secondary" onClick={onClose} type="button">
               Cancel
             </button>
@@ -209,4 +216,3 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
     </div>
   );
 }
-

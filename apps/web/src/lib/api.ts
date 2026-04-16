@@ -6,6 +6,7 @@ import type {
   Tag,
   User
 } from "./types";
+import type { ThemeId } from "./themes";
 
 export class ApiError extends Error {
   public readonly status: number;
@@ -86,6 +87,13 @@ export const api = {
       token
     });
   },
+  updateSettings(token: string, payload: { themeId: ThemeId }) {
+    return request<{ user: User }>("/auth/settings", {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(payload)
+    });
+  },
   getHosts(token: string) {
     return request<{ hosts: Host[] }>("/hosts", { token });
   },
@@ -149,4 +157,3 @@ export const api = {
     });
   }
 };
-

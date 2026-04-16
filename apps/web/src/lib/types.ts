@@ -1,6 +1,11 @@
+import type { ThemeId } from "./themes";
+
 export interface User {
   id: string;
   email: string;
+  settings: {
+    themeId: ThemeId;
+  };
 }
 
 export interface Tag {

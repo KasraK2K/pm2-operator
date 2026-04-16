@@ -1,6 +1,7 @@
 import { jsx as _jsx } from "react/jsx-runtime";
 import { useEffect, useState } from "react";
 import { api, ApiError } from "./lib/api";
+import { useTheme } from "./lib/useTheme";
 import { AuthScreen } from "./components/AuthScreen";
 import { Dashboard } from "./components/Dashboard";
 const ACCESS_TOKEN_KEY = "pm2-log-viewer.access-token";
@@ -18,6 +19,7 @@ export default function App() {
     const [booting, setBooting] = useState(true);
     const [authBusy, setAuthBusy] = useState(false);
     const [authError, setAuthError] = useState(null);
+    const theme = useTheme(user?.settings.themeId ?? null);
     useEffect(() => {
         const bootstrap = async () => {
             const storedToken = localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -70,10 +72,10 @@ export default function App() {
         persistAccessToken(nextAccessToken);
     };
     if (booting) {
-        return (_jsx("div", { className: "flex min-h-screen items-center justify-center px-4", children: _jsx("div", { className: "panel flex items-center gap-3 px-6 py-5 text-sm text-slate-300", children: "Restoring your PM2 workspace..." }) }));
+        return (_jsx("div", { className: "min-h-screen px-4 py-4", children: _jsx("div", { className: "mx-auto flex min-h-[calc(100vh-2rem)] max-w-xl items-center justify-center", children: _jsx("div", { className: "panel flex items-center gap-3 px-5 py-4 text-sm text-[color:var(--text-muted)]", children: "Restoring your PM2 workspace..." }) }) }));
     }
     if (!user || !accessToken) {
         return (_jsx(AuthScreen, { busy: authBusy, error: authError, mode: mode, onModeChange: setMode, onSubmit: handleAuthSubmit }));
     }
-    return (_jsx(Dashboard, { accessToken: accessToken, onSessionUpdate: handleSessionUpdate, user: user }));
+    return (_jsx(Dashboard, { accessToken: accessToken, activeThemeId: theme.activeThemeId, onClearThemePreview: theme.clearPreviewTheme, onPreviewTheme: theme.previewTheme, onSessionUpdate: handleSessionUpdate, user: user }));
 }

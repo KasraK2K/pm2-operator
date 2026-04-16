@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { api, ApiError } from "./lib/api";
 import type { User } from "./lib/types";
+import { useTheme } from "./lib/useTheme";
 import { AuthScreen } from "./components/AuthScreen";
 import { Dashboard } from "./components/Dashboard";
 
@@ -23,6 +24,7 @@ export default function App() {
   const [booting, setBooting] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const theme = useTheme(user?.settings.themeId ?? null);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -85,9 +87,11 @@ export default function App() {
 
   if (booting) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="panel flex items-center gap-3 px-6 py-5 text-sm text-slate-300">
-          Restoring your PM2 workspace...
+      <div className="min-h-screen px-4 py-4">
+        <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-xl items-center justify-center">
+          <div className="panel flex items-center gap-3 px-5 py-4 text-sm text-[color:var(--text-muted)]">
+            Restoring your PM2 workspace...
+          </div>
         </div>
       </div>
     );
@@ -108,6 +112,9 @@ export default function App() {
   return (
     <Dashboard
       accessToken={accessToken}
+      activeThemeId={theme.activeThemeId}
+      onClearThemePreview={theme.clearPreviewTheme}
+      onPreviewTheme={theme.previewTheme}
       onSessionUpdate={handleSessionUpdate}
       user={user}
     />

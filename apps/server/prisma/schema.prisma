@@ -22,6 +22,7 @@ model User {
   tags          Tag[]
   auditLogs     AuditLog[]
   refreshTokens RefreshToken[]
+  preferences   UserPreference?
 
   @@map("users")
 }
@@ -105,4 +106,14 @@ model RefreshToken {
   @@index([userId])
   @@index([family])
   @@map("refresh_tokens")
+}
+
+model UserPreference {
+  userId    String   @id @map("user_id")
+  themeId   String   @default("midnight-ops") @map("theme_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
 }

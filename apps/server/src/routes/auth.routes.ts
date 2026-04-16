@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 
+import { DEFAULT_THEME_ID, THEME_IDS } from "../config/themes";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
 import { writeAuditLog } from "../services/audit.service";
@@ -13,6 +14,12 @@ import {
   rotateRefreshToken,
   verifyPassword
 } from "../services/auth.service";
+import {
+  authenticatedUserSelect,
+  loadAuthenticatedUserProfile,
+  serializeAuthenticatedUser,
+  updateUserTheme
+} from "../services/user-preferences.service";
 import { asyncHandler } from "../utils/async-handler";
 import { AppError } from "../utils/app-error";
 import { getRequestIp } from "../utils/http";
@@ -22,6 +29,12 @@ const authRoutes = Router();
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128)
+});
+
+const themeIdSchema = z.enum(THEME_IDS);
+
+const settingsSchema = z.object({
+  themeId: themeIdSchema
 });
 
 authRoutes.post(
@@ -37,8 +50,14 @@ authRoutes.post(
     const user = await prisma.user.create({
       data: {
         email: body.email,
-        passwordHash: await hashPassword(body.password)
-      }
+        passwordHash: await hashPassword(body.password),
+        preferences: {
+          create: {
+            themeId: DEFAULT_THEME_ID
+          }
+        }
+      },
+      select: authenticatedUserSelect
     });
 
     const session = await createAuthSession(
@@ -60,7 +79,7 @@ authRoutes.post(
     });
 
     response.status(201).json({
-      user: { id: user.id, email: user.email },
+      user: serializeAuthenticatedUser(user),
       accessToken: session.accessToken
     });
   })
@@ -70,7 +89,14 @@ authRoutes.post(
   "/login",
   asyncHandler(async (request, response) => {
     const body = credentialsSchema.parse(request.body);
-    const user = await prisma.user.findUnique({ where: { email: body.email } });
+    const user = await prisma.user.findUnique({
+      where: { email: body.email },
+      select: {
+        id: true,
+        email: true,
+        passwordHash: true
+      }
+    });
 
     if (!user || !(await verifyPassword(user.passwordHash, body.password))) {
       await writeAuditLog({
@@ -100,7 +126,7 @@ authRoutes.post(
     });
 
     response.json({
-      user: { id: user.id, email: user.email },
+      user: await loadAuthenticatedUserProfile(user.id),
       accessToken: session.accessToken
     });
   })
@@ -123,7 +149,7 @@ authRoutes.post(
     response.cookie(getRefreshCookieName(), session.refreshToken, buildRefreshCookieOptions());
 
     response.json({
-      user: { id: session.user.userId, email: session.user.email },
+      user: await loadAuthenticatedUserProfile(session.user.userId),
       accessToken: session.accessToken
     });
   })
@@ -154,18 +180,32 @@ authRoutes.get(
   "/me",
   requireAuth,
   asyncHandler(async (request, response) => {
-    const user = await prisma.user.findUnique({
-      where: { id: request.auth!.userId },
-      select: { id: true, email: true }
-    });
+    const user = await loadAuthenticatedUserProfile(request.auth!.userId);
 
-    if (!user) {
-      throw new AppError(404, "USER_NOT_FOUND", "Authenticated user was not found.");
-    }
+    response.json({ user });
+  })
+);
+
+authRoutes.patch(
+  "/settings",
+  requireAuth,
+  asyncHandler(async (request, response) => {
+    const body = settingsSchema.parse(request.body);
+    const user = await updateUserTheme(request.auth!.userId, body.themeId);
+
+    await writeAuditLog({
+      request,
+      userId: request.auth!.userId,
+      action: "auth.settings.update",
+      targetType: "user",
+      targetId: request.auth!.userId,
+      metadata: {
+        themeId: body.themeId
+      }
+    });
 
     response.json({ user });
   })
 );
 
 export { authRoutes };
-
