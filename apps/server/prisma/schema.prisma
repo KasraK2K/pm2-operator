@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AuthType {
+  PASSWORD
+  PRIVATE_KEY
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String         @map("password_hash")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  hosts         SshHost[]
+  tags          Tag[]
+  auditLogs     AuditLog[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model SshHost {
+  id                   String       @id @default(uuid())
+  userId               String       @map("user_id")
+  name                 String
+  host                 String
+  port                 Int          @default(22)
+  username             String
+  authType             AuthType     @map("auth_type")
+  encryptedPassword    String?      @map("encrypted_password")
+  encryptedPrivateKey  String?      @map("encrypted_private_key")
+  encryptedPassphrase  String?      @map("encrypted_passphrase")
+  hostFingerprint      String?      @map("host_fingerprint")
+  lastTestedAt         DateTime?    @map("last_tested_at")
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
+  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hostTags             SshHostTag[]
+
+  @@index([userId])
+  @@map("ssh_hosts")
+}
+
+model Tag {
+  id        String       @id @default(uuid())
+  userId    String       @map("user_id")
+  name      String
+  color     String?
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hostTags  SshHostTag[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("tags")
+}
+
+model SshHostTag {
+  hostId String @map("host_id")
+  tagId  String @map("tag_id")
+  host   SshHost @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  tag    Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([hostId, tagId])
+  @@map("ssh_host_tags")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  action    String
+  targetType String? @map("target_type")
+  targetId  String?  @map("target_id")
+  metadata  Json?
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  tokenHash  String   @unique @map("token_hash")
+  family     String
+  expiresAt  DateTime @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  userAgent  String?  @map("user_agent")
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([family])
+  @@map("refresh_tokens")
+}

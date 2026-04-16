@@ -1,0 +1,8 @@
+node_modules
+apps/server/dist
+apps/web/dist
+.git
+.gitignore
+coverage
+*.log
+

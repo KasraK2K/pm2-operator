@@ -1,0 +1,21 @@
+{
+  "name": "pm2-log-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/server",
+    "apps/web"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev": "concurrently \"npm run dev --workspace @pm2-log-viewer/server\" \"npm run dev --workspace @pm2-log-viewer/web\"",
+    "test": "npm run test --workspace @pm2-log-viewer/server",
+    "prisma:generate": "npm run prisma:generate --workspace @pm2-log-viewer/server",
+    "prisma:migrate": "npm run prisma:migrate --workspace @pm2-log-viewer/server",
+    "prisma:deploy": "npm run prisma:deploy --workspace @pm2-log-viewer/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
+

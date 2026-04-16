@@ -1,0 +1,11 @@
+node_modules
+dist
+coverage
+.env
+.env.local
+.DS_Store
+*.log
+apps/web/dist
+apps/server/dist
+apps/server/generated
+
