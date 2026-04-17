@@ -27,7 +27,10 @@ interface RawPm2Process {
 }
 
 export function stripAnsiSequences(value: string) {
-  return value.replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, "");
+  return value
+    .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, "")
+    .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g, "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001a\u001c-\u001f\u007f]/g, "");
 }
 
 export function extractJsonArray(output: string): string {
@@ -35,7 +38,9 @@ export function extractJsonArray(output: string): string {
   const start = sanitized.search(/\[\s*(?:\{|\])/);
 
   if (start === -1) {
-    throw new AppError(502, "INVALID_PM2_JSON", "pm2 jlist did not return a JSON array.");
+    throw new AppError(502, "INVALID_PM2_JSON", "pm2 jlist did not return a JSON array.", {
+      output: sanitized.slice(0, 600)
+    });
   }
 
   let depth = 0;
@@ -82,7 +87,9 @@ export function extractJsonArray(output: string): string {
     }
   }
 
-  throw new AppError(502, "INVALID_PM2_JSON", "pm2 jlist output did not contain a complete JSON array.");
+  throw new AppError(502, "INVALID_PM2_JSON", "pm2 jlist output did not contain a complete JSON array.", {
+    output: sanitized.slice(start, start + 600)
+  });
 }
 
 export function parsePm2List(output: string): Pm2Process[] {

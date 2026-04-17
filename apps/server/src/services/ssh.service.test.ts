@@ -15,6 +15,7 @@ describe("ssh.service", () => {
     expect(wrapped).toContain('"$SHELL" -lc');
     expect(wrapped).toContain("bash -lc");
     expect(wrapped).toContain("zsh -lc");
+    expect(wrapped).not.toContain("\n");
   });
 
   it("does not treat normal pm2 stderr output as pm2 missing", () => {
@@ -73,5 +74,37 @@ describe("ssh.service", () => {
     });
 
     expect(stripEchoedShellLines(parsed.body, [wrappedCommand, echoedExit])).toBe('[{"name":"api"}]');
+  });
+
+  it("parses marker lines even when the shell prefixes prompts before them", () => {
+    const beginMarker = "__PM2LV_BEGIN__f35f8abd79ed4696b29bd0b84a1e230c";
+    const exitPrefix = "__PM2LV_EXIT__f35f8abd79ed4696b29bd0b84a1e230c:";
+    const transcript = [
+      "Last login: Fri Apr 17 07:12:36 2026 from 87.241.156.219",
+      `root@Dev3:~# ${beginMarker}`,
+      "root@Dev3:~# > > > > > > > > > > > [{\"pid\":1673565,\"name\":\"pm2-logrotate\"}]",
+      `root@Dev3:~# ${exitPrefix}0`
+    ].join("\n");
+
+    expect(parseShellTranscript(transcript, beginMarker, exitPrefix)).toEqual({
+      body: "root@Dev3:~# > > > > > > > > > > > [{\"pid\":1673565,\"name\":\"pm2-logrotate\"}]\nroot@Dev3:~#",
+      exitCode: 0
+    });
+  });
+
+  it("keeps command output when the exit marker is appended on the same prompt line", () => {
+    const beginMarker = "__PM2LV_BEGIN__e34745bec9884d5cbeb11659c0c21ef1";
+    const exitPrefix = "__PM2LV_EXIT__e34745bec9884d5cbeb11659c0c21ef1:";
+    const transcript = [
+      "Last login: Fri Apr 17 12:50:57 2026 from 87.241.156.219",
+      `root@Dev3:~# ${beginMarker}`,
+      `root@Dev3:~# [{"name":"api","pm_id":1}]root@Dev3:~# ${exitPrefix}0`,
+      "root@Dev3:~# logout"
+    ].join("\n");
+
+    expect(parseShellTranscript(transcript, beginMarker, exitPrefix)).toEqual({
+      body: 'root@Dev3:~# [{"name":"api","pm_id":1}]root@Dev3:~#',
+      exitCode: 0
+    });
   });
 });

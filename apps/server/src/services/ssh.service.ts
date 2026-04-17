@@ -75,17 +75,19 @@ export function parseShellTranscript(
   exitMarkerPrefix: string
 ) {
   const normalized = transcript.replace(/\r/g, "");
-  const lines = normalized.split("\n");
-  const beginIndex = lines.findIndex((line) => line.trim() === beginMarker);
-  const exitIndex = lines.findIndex((line) => line.trim().startsWith(exitMarkerPrefix));
-
-  const exitLine = exitIndex === -1 ? "" : lines[exitIndex].trim();
-  const exitMatch = exitLine.match(new RegExp(`^${escapeRegex(exitMarkerPrefix)}(\\d+)`));
+  const beginPattern = new RegExp(`${escapeRegex(beginMarker)}(?=\\s*(?:\\n|$))`);
+  const beginMatch = beginPattern.exec(normalized);
+  const beginIndex = beginMatch ? beginMatch.index : -1;
+  const beginLineEnd = beginIndex === -1 ? -1 : normalized.indexOf("\n", beginIndex);
+  const bodyStart = beginIndex === -1 ? 0 : beginLineEnd === -1 ? beginIndex + beginMarker.length : beginLineEnd + 1;
+  const exitPattern = new RegExp(`${escapeRegex(exitMarkerPrefix)}(\\d+)`);
+  const exitMatch = exitPattern.exec(normalized.slice(bodyStart));
+  const exitIndex = exitMatch ? bodyStart + exitMatch.index : -1;
   const exitCode = exitMatch ? Number(exitMatch[1]) : null;
 
-  if (beginIndex !== -1 && exitIndex !== -1 && exitIndex > beginIndex) {
+  if (beginIndex !== -1 && exitIndex !== -1 && exitIndex > bodyStart) {
     return {
-      body: lines.slice(beginIndex + 1, exitIndex).join("\n").trim(),
+      body: normalized.slice(bodyStart, exitIndex).trim(),
       exitCode
     };
   }
@@ -111,18 +113,18 @@ export function wrapCommandForLoginShell(command: string) {
 
   return [
     'if [ -n "$SHELL" ] && [ -x "$SHELL" ]; then',
-    '  case "$(basename "$SHELL")" in',
-    `    bash|zsh|ksh) "$SHELL" -lc ${escapedCommand} ;;`,
-    `    *) "$SHELL" -c ${escapedCommand} ;;`,
-    "  esac",
+    'case "$(basename "$SHELL")" in',
+    `bash|zsh|ksh) "$SHELL" -lc ${escapedCommand} ;;`,
+    `*) "$SHELL" -c ${escapedCommand} ;;`,
+    "esac;",
     "elif command -v bash >/dev/null 2>&1; then",
-    `  bash -lc ${escapedCommand}`,
+    `bash -lc ${escapedCommand};`,
     "elif command -v zsh >/dev/null 2>&1; then",
-    `  zsh -lc ${escapedCommand}`,
+    `zsh -lc ${escapedCommand};`,
     "else",
-    `  sh -c ${escapedCommand}`,
+    `sh -c ${escapedCommand};`,
     "fi"
-  ].join("\n");
+  ].join(" ");
 }
 
 async function openShell(host: HostLike, options?: { repinFingerprint?: boolean }): Promise<ShellSession> {
@@ -346,7 +348,7 @@ export async function discoverPm2Processes(host: HostLike) {
 
   return {
     fingerprint: result.fingerprint,
-    processes: parsePm2List(result.stdout)
+    processes: parsePm2List(buildCombinedOutput(result))
   };
 }
 

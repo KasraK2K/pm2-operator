@@ -43,4 +43,13 @@ describe("parsePm2List", () => {
       '[{"name":"api","pm_id":1,"pm2_env":{"status":"online"}}]'
     );
   });
+
+  it("strips osc and control-sequence noise before parsing pm2 output", () => {
+    const noisyOutput =
+      "\u001b]0;root@host:~\u0007\u0000root@host:~# [{\"name\":\"api\",\"pm_id\":1,\"pm2_env\":{\"status\":\"online\"}}]";
+
+    expect(extractJsonArray(noisyOutput)).toBe(
+      '[{"name":"api","pm_id":1,"pm2_env":{"status":"online"}}]'
+    );
+  });
 });
