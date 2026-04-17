@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Search,
   Server,
-  Shield,
   Tag as TagIcon,
   TerminalSquare,
   Trash2
@@ -29,6 +28,7 @@ import {
 import { formatBytes, formatLastTested, formatUptime } from "../lib/format";
 import { THEME_LOOKUP, type ThemeId } from "../lib/themes";
 import type { Host, HostPayload, LogLine, ManagedUser, Pm2Process, Tag, User } from "../lib/types";
+import { BrandLockup } from "./Brand";
 import { HostModal } from "./HostModal";
 import { LogPanel } from "./LogPanel";
 import { SettingsPanel } from "./SettingsPanel";
@@ -901,15 +901,7 @@ export function Dashboard({
         <div className="mx-auto flex h-full max-w-[1800px] flex-col gap-3">
           <header className="panel flex flex-wrap items-center justify-between gap-3 px-3 py-2.5">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-[0.9rem] bg-[color:var(--accent-soft)] text-[color:var(--accent)]">
-                <Shield className="size-[18px]" />
-              </div>
-              <div>
-                <div className="section-kicker">Operations workspace</div>
-                <div className="mt-1 text-sm font-semibold text-[color:var(--text)]">
-                  PM2 Log Viewer
-                </div>
-              </div>
+              <BrandLockup descriptor="Operations workspace" size="compact" />
               <span className="badge hidden sm:inline-flex">{hosts.length} hosts</span>
             </div>
 

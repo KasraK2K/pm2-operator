@@ -1,5 +1,7 @@
-import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
+import { LockKeyhole, Mail } from "lucide-react";
 import { useEffect, useState } from "react";
+
+import { BrandLockup } from "./Brand";
 
 interface AuthScreenProps {
   mode: "login" | "bootstrap";
@@ -24,10 +26,7 @@ export function AuthScreen({ mode, ownerExists, busy, error, onSubmit }: AuthScr
       <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[1280px] gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <section className="panel hidden min-h-[34rem] flex-col justify-between p-6 lg:flex">
           <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--accent-soft)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--accent)]">
-              <ShieldCheck className="size-4" />
-              PM2 Log Viewer
-            </div>
+            <BrandLockup descriptor="Secure remote PM2 observability" size="hero" />
 
             <div className="max-w-xl space-y-4">
               <h1 className="text-4xl font-semibold leading-tight text-[color:var(--text)]">
@@ -65,6 +64,9 @@ export function AuthScreen({ mode, ownerExists, busy, error, onSubmit }: AuthScr
         <section className="panel flex min-h-[34rem] items-center justify-center px-5 py-6 sm:px-8">
           <div className="w-full max-w-md space-y-6">
             <div className="space-y-3">
+              <div className="flex justify-center lg:hidden">
+                <BrandLockup align="center" showDescriptor={false} />
+              </div>
               <div>
                 <div className="section-kicker">
                   {createOwner ? "Workspace bootstrap" : "Operator access"}

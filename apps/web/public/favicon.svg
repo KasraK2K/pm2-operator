@@ -1,0 +1,31 @@
+<svg width="64" height="64" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pm2lv-gradient" x1="16" y1="18" x2="56" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5AD0FF" />
+      <stop offset="0.58" stop-color="#EFC45B" />
+      <stop offset="1" stop-color="#42D88F" />
+    </linearGradient>
+    <radialGradient id="pm2lv-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(42 54) rotate(148) scale(29 24)">
+      <stop stop-color="#173246" />
+      <stop offset="1" stop-color="#08111C" />
+    </radialGradient>
+  </defs>
+
+  <rect x="7" y="7" width="58" height="58" rx="17" fill="#0D1725" stroke="#27415B" stroke-width="2" />
+  <rect x="13" y="13" width="46" height="46" rx="14" fill="url(#pm2lv-glow)" />
+
+  <rect x="16" y="17" width="40" height="31" rx="8" stroke="url(#pm2lv-gradient)" stroke-width="2.5" />
+  <circle cx="23" cy="24" r="2.4" fill="#76879B" />
+  <path d="M28 24H35" stroke="#76879B" stroke-width="2.2" stroke-linecap="round" />
+  <path d="M23 32H34" stroke="#A7B7CA" stroke-width="2.2" stroke-linecap="round" />
+  <path d="M23 38H31" stroke="#A7B7CA" stroke-width="2.2" stroke-linecap="round" />
+
+  <path
+    d="M18 54H24L29 46L34 57L41 42L46 49L54 44"
+    stroke="url(#pm2lv-gradient)"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path d="M18 54H54" stroke="#35526C" stroke-width="2" stroke-linecap="round" opacity="0.4" />
+</svg>
