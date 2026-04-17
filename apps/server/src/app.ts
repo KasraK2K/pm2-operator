@@ -13,6 +13,7 @@ import { errorHandler, notFoundHandler } from "./middleware/error";
 import { authRoutes } from "./routes/auth.routes";
 import { hostRoutes } from "./routes/hosts.routes";
 import { tagRoutes } from "./routes/tags.routes";
+import { userRoutes } from "./routes/users.routes";
 
 export function createApp(options?: { frontendDir?: string }) {
   const app = express();
@@ -36,6 +37,7 @@ export function createApp(options?: { frontendDir?: string }) {
   app.use("/auth", authRoutes);
   app.use("/hosts", hostRoutes);
   app.use("/tags", tagRoutes);
+  app.use("/users", userRoutes);
 
   if (options?.frontendDir) {
     const indexPath = path.join(options.frontendDir, "index.html");
@@ -47,6 +49,7 @@ export function createApp(options?: { frontendDir?: string }) {
           request.path.startsWith("/auth") ||
           request.path.startsWith("/hosts") ||
           request.path.startsWith("/tags") ||
+          request.path.startsWith("/users") ||
           request.path.startsWith("/health") ||
           request.path.startsWith("/socket.io")
         ) {
@@ -64,4 +67,3 @@ export function createApp(options?: { frontendDir?: string }) {
 
   return app;
 }
-

@@ -12,14 +12,21 @@ enum AuthType {
   PRIVATE_KEY
 }
 
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
   passwordHash  String         @map("password_hash")
+  role          UserRole       @default(MEMBER)
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
-  hosts         SshHost[]
-  tags          Tag[]
+  createdHosts  SshHost[]      @relation("SshHostCreator")
+  createdTags   Tag[]          @relation("TagCreator")
   auditLogs     AuditLog[]
   refreshTokens RefreshToken[]
   preferences   UserPreference?
@@ -29,7 +36,7 @@ model User {
 
 model SshHost {
   id                   String       @id @default(uuid())
-  userId               String       @map("user_id")
+  userId               String?      @map("user_id")
   name                 String
   host                 String
   port                 Int          @default(22)
@@ -42,7 +49,7 @@ model SshHost {
   lastTestedAt         DateTime?    @map("last_tested_at")
   createdAt            DateTime     @default(now()) @map("created_at")
   updatedAt            DateTime     @updatedAt @map("updated_at")
-  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User?        @relation("SshHostCreator", fields: [userId], references: [id], onDelete: SetNull)
   hostTags             SshHostTag[]
 
   @@index([userId])
@@ -51,15 +58,15 @@ model SshHost {
 
 model Tag {
   id        String       @id @default(uuid())
-  userId    String       @map("user_id")
+  userId    String?      @map("user_id")
   name      String
   color     String?
   createdAt DateTime     @default(now()) @map("created_at")
   updatedAt DateTime     @updatedAt @map("updated_at")
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User?        @relation("TagCreator", fields: [userId], references: [id], onDelete: SetNull)
   hostTags  SshHostTag[]
 
-  @@unique([userId, name])
+  @@unique([name])
   @@index([userId])
   @@map("tags")
 }

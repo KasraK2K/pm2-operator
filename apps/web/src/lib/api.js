@@ -33,6 +33,15 @@ async function request(input, init) {
     return data;
 }
 export const api = {
+    bootstrapStatus() {
+        return request("/auth/bootstrap-status");
+    },
+    bootstrap(email, password) {
+        return request("/auth/bootstrap", {
+            method: "POST",
+            body: JSON.stringify({ email, password })
+        });
+    },
     register(email, password) {
         return request("/auth/register", {
             method: "POST",
@@ -61,6 +70,13 @@ export const api = {
     },
     updateSettings(token, payload) {
         return request("/auth/settings", {
+            method: "PATCH",
+            token,
+            body: JSON.stringify(payload)
+        });
+    },
+    updateProfile(token, payload) {
+        return request("/auth/settings/profile", {
             method: "PATCH",
             token,
             body: JSON.stringify(payload)
@@ -120,6 +136,29 @@ export const api = {
     },
     deleteTag(token, tagId) {
         return request(`/tags/${tagId}`, {
+            method: "DELETE",
+            token
+        });
+    },
+    getUsers(token) {
+        return request("/users", { token });
+    },
+    createUser(token, payload) {
+        return request("/users", {
+            method: "POST",
+            token,
+            body: JSON.stringify(payload)
+        });
+    },
+    updateUser(token, userId, payload) {
+        return request(`/users/${userId}`, {
+            method: "PATCH",
+            token,
+            body: JSON.stringify(payload)
+        });
+    },
+    deleteUser(token, userId) {
+        return request(`/users/${userId}`, {
             method: "DELETE",
             token
         });

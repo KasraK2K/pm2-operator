@@ -1,9 +1,9 @@
 import { jsx as _jsx } from "react/jsx-runtime";
 import { useEffect, useState } from "react";
-import { api, ApiError } from "./lib/api";
-import { useTheme } from "./lib/useTheme";
 import { AuthScreen } from "./components/AuthScreen";
 import { Dashboard } from "./components/Dashboard";
+import { api, ApiError } from "./lib/api";
+import { useTheme } from "./lib/useTheme";
 const ACCESS_TOKEN_KEY = "pm2-log-viewer.access-token";
 function persistAccessToken(token) {
     if (token) {
@@ -14,6 +14,7 @@ function persistAccessToken(token) {
 }
 export default function App() {
     const [mode, setMode] = useState("login");
+    const [ownerExists, setOwnerExists] = useState(true);
     const [user, setUser] = useState(null);
     const [accessToken, setAccessToken] = useState(null);
     const [booting, setBooting] = useState(true);
@@ -28,6 +29,8 @@ export default function App() {
                     const me = await api.me(storedToken);
                     setUser(me.user);
                     setAccessToken(storedToken);
+                    setOwnerExists(true);
+                    setMode("login");
                     setBooting(false);
                     return;
                 }
@@ -40,9 +43,21 @@ export default function App() {
                 setUser(session.user);
                 setAccessToken(session.accessToken);
                 persistAccessToken(session.accessToken);
+                setOwnerExists(true);
+                setMode("login");
             }
             catch {
                 persistAccessToken(null);
+                try {
+                    const status = await api.bootstrapStatus();
+                    setOwnerExists(status.ownerExists);
+                    setMode(status.ownerExists ? "login" : "bootstrap");
+                }
+                catch {
+                    setOwnerExists(true);
+                    setMode("login");
+                    setAuthError("Unable to load workspace bootstrap state.");
+                }
             }
             finally {
                 setBooting(false);
@@ -54,9 +69,11 @@ export default function App() {
         setAuthBusy(true);
         setAuthError(null);
         try {
-            const session = nextMode === "login" ? await api.login(email, password) : await api.register(email, password);
+            const session = nextMode === "login" ? await api.login(email, password) : await api.bootstrap(email, password);
             setUser(session.user);
             setAccessToken(session.accessToken);
+            setOwnerExists(true);
+            setMode("login");
             persistAccessToken(session.accessToken);
         }
         catch (error) {
@@ -70,12 +87,16 @@ export default function App() {
         setUser(nextUser);
         setAccessToken(nextAccessToken);
         persistAccessToken(nextAccessToken);
+        if (!nextUser) {
+            setOwnerExists(true);
+            setMode("login");
+        }
     };
     if (booting) {
         return (_jsx("div", { className: "min-h-screen px-4 py-4", children: _jsx("div", { className: "mx-auto flex min-h-[calc(100vh-2rem)] max-w-xl items-center justify-center", children: _jsx("div", { className: "panel flex items-center gap-3 px-5 py-4 text-sm text-[color:var(--text-muted)]", children: "Restoring your PM2 workspace..." }) }) }));
     }
     if (!user || !accessToken) {
-        return (_jsx(AuthScreen, { busy: authBusy, error: authError, mode: mode, onModeChange: setMode, onSubmit: handleAuthSubmit }));
+        return (_jsx(AuthScreen, { busy: authBusy, error: authError, mode: mode, ownerExists: ownerExists, onSubmit: handleAuthSubmit }));
     }
     return (_jsx(Dashboard, { accessToken: accessToken, activeThemeId: theme.activeThemeId, onClearThemePreview: theme.clearPreviewTheme, onPreviewTheme: theme.previewTheme, onSessionUpdate: handleSessionUpdate, user: user }));
 }

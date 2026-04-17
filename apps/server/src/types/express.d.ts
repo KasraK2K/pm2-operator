@@ -6,8 +6,8 @@ declare global {
       auth?: {
         userId: string;
         email: string;
+        role: import("@prisma/client").UserRole;
       };
     }
   }
 }
-

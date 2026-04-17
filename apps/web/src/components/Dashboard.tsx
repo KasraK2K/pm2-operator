@@ -1,6 +1,7 @@
 import {
   Activity,
   ChevronDown,
+  Cog,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -21,13 +22,16 @@ import { api, ApiError } from "../lib/api";
 import {
   readDashboardViewState,
   writeDashboardViewState,
-  type DashboardTab
+  type DashboardSection,
+  type DashboardTab,
+  type SettingsTab
 } from "../lib/dashboard-view-state";
 import { formatBytes, formatLastTested, formatUptime } from "../lib/format";
 import { THEME_LOOKUP, type ThemeId } from "../lib/themes";
-import type { Host, HostPayload, LogLine, Pm2Process, Tag, User } from "../lib/types";
+import type { Host, HostPayload, LogLine, ManagedUser, Pm2Process, Tag, User } from "../lib/types";
 import { HostModal } from "./HostModal";
 import { LogPanel } from "./LogPanel";
+import { SettingsPanel } from "./SettingsPanel";
 import { ThemeMenu } from "./ThemeMenu";
 
 interface DashboardProps {
@@ -132,7 +136,11 @@ export function Dashboard({
   });
   const [tagBusy, setTagBusy] = useState(false);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<DashboardSection>(
+    restoredView?.activeSection ?? "monitor"
+  );
   const [activeTab, setActiveTab] = useState<DashboardTab>(restoredView?.activeTab ?? "processes");
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>(restoredView?.settingsTab ?? "profile");
   const [processes, setProcesses] = useState<Pm2Process[]>([]);
   const [processSearch, setProcessSearch] = useState(restoredView?.processSearch ?? "");
   const [statusFilter, setStatusFilter] = useState(restoredView?.statusFilter ?? "all");
@@ -154,6 +162,9 @@ export function Dashboard({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(restoredView?.sidebarCollapsed ?? false);
   const [themeBusy, setThemeBusy] = useState(false);
   const [themeError, setThemeError] = useState<string | null>(null);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [usersBusy, setUsersBusy] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const sessionTokenRef = useRef(accessToken);
@@ -162,12 +173,16 @@ export function Dashboard({
   const rawLogBufferRef = useRef<LogLine[]>([]);
   const previousHostIdRef = useRef<string | null>(restoredView?.selectedHostId ?? null);
   const restoreLogIdsRef = useRef<number[]>(
-    restoredView?.activeTab === "logs" ? restoredView.activeLogProcessIds : []
+    restoredView?.activeSection === "monitor" && restoredView.activeTab === "logs"
+      ? restoredView.activeLogProcessIds
+      : []
   );
   const restoreAttemptedRef = useRef(false);
 
   const deferredHostSearch = useDeferredValue(hostSearch);
   const deferredProcessSearch = useDeferredValue(processSearch);
+  const canManageWorkspace = user.role === "OWNER" || user.role === "ADMIN";
+  const canManageUsers = canManageWorkspace;
 
   useEffect(() => {
     setSessionToken(accessToken);
@@ -294,6 +309,7 @@ export function Dashboard({
       return;
     }
 
+    setActiveSection("monitor");
     setActiveTab("logs");
     setActiveLogProcesses(uniqueProcesses);
     setPaused(false);
@@ -377,7 +393,7 @@ export function Dashboard({
           });
         }
 
-        if (activeTab === "logs" && restoreLogIdsRef.current.length > 0) {
+        if (activeSection === "monitor" && activeTab === "logs" && restoreLogIdsRef.current.length > 0) {
           const restoredProcesses = nextProcesses.filter((process) =>
             restoreLogIdsRef.current.includes(process.pmId)
           );
@@ -510,18 +526,34 @@ export function Dashboard({
   }, [includePattern, excludePattern]);
 
   useEffect(() => {
+    if (canManageUsers) {
+      return;
+    }
+
+    setUsers([]);
+    setUsersError(null);
+  }, [canManageUsers]);
+
+  useEffect(() => {
     if (!workspaceReady) {
       return;
     }
 
-    if (!restoreAttemptedRef.current && activeTab === "logs" && restoreLogIdsRef.current.length > 0) {
+    if (
+      !restoreAttemptedRef.current &&
+      activeSection === "monitor" &&
+      activeTab === "logs" &&
+      restoreLogIdsRef.current.length > 0
+    ) {
       return;
     }
 
     writeDashboardViewState(user.id, {
-      version: 1,
+      version: 2,
+      activeSection,
       selectedHostId,
       activeTab,
+      settingsTab,
       hostSearch,
       selectedTagFilters,
       processSearch,
@@ -536,6 +568,7 @@ export function Dashboard({
     });
   }, [
     activeLogProcesses,
+    activeSection,
     activeTab,
     excludePattern,
     hostSearch,
@@ -543,6 +576,7 @@ export function Dashboard({
     initialLines,
     processSearch,
     scrollLock,
+    settingsTab,
     selectedHostId,
     selectedProcessIds,
     selectedTagFilters,
@@ -590,7 +624,80 @@ export function Dashboard({
     }
   }
 
+  async function loadUsers() {
+    if (!canManageUsers) {
+      setUsers([]);
+      setUsersError(null);
+      return;
+    }
+
+    setUsersBusy(true);
+    setUsersError(null);
+
+    try {
+      const response = await withSessionRetry((token) => api.getUsers(token));
+      setUsers(response.users);
+    } catch (error) {
+      setUsersError(formatApiError(error, "Failed to load workspace users."));
+    } finally {
+      setUsersBusy(false);
+    }
+  }
+
+  async function handleProfileSave(payload: {
+    email?: string;
+    currentPassword: string;
+    newPassword?: string;
+  }) {
+    const response = await withSessionRetry((token) => api.updateProfile(token, payload));
+    setSessionToken(response.accessToken);
+    sessionTokenRef.current = response.accessToken;
+    onSessionUpdate(response.user, response.accessToken);
+    setFlash({
+      tone: "success",
+      text: "Profile updated."
+    });
+  }
+
+  async function handleUserCreate(payload: { email: string; password: string; role: User["role"] }) {
+    await withSessionRetry((token) => api.createUser(token, payload));
+    setFlash({
+      tone: "success",
+      text: "User account created."
+    });
+  }
+
+  async function handleUserUpdate(
+    userId: string,
+    payload: { email?: string; password?: string; role?: User["role"] }
+  ) {
+    await withSessionRetry((token) => api.updateUser(token, userId, payload));
+    setFlash({
+      tone: "success",
+      text: "User account updated."
+    });
+  }
+
+  async function handleUserDelete(targetUser: ManagedUser) {
+    const confirmed = window.confirm(`Delete ${targetUser.email}? This cannot be undone.`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    await withSessionRetry((token) => api.deleteUser(token, targetUser.id));
+    setFlash({
+      tone: "success",
+      text: "User account deleted."
+    });
+    await loadUsers();
+  }
+
   async function handleHostSave(payload: HostPayload, hostId?: string) {
+    if (!canManageWorkspace) {
+      return;
+    }
+
     setHostMutationBusy(true);
 
     const normalizedPayload = {
@@ -626,6 +733,10 @@ export function Dashboard({
   }
 
   async function handleHostDelete(host: Host) {
+    if (!canManageWorkspace) {
+      return;
+    }
+
     const confirmed = window.confirm(`Delete ${host.name}? This cannot be undone.`);
 
     if (!confirmed) {
@@ -652,6 +763,10 @@ export function Dashboard({
   }
 
   async function handleHostTest(host: Host, repinFingerprint = false) {
+    if (!canManageWorkspace) {
+      return;
+    }
+
     setHostActionBusyId(host.id);
 
     try {
@@ -685,6 +800,10 @@ export function Dashboard({
   }
 
   async function handleTagSubmit() {
+    if (!canManageWorkspace) {
+      return;
+    }
+
     if (!tagDraft.name.trim()) {
       return;
     }
@@ -721,6 +840,10 @@ export function Dashboard({
   }
 
   async function handleTagDelete(tag: Tag) {
+    if (!canManageWorkspace) {
+      return;
+    }
+
     const confirmed = window.confirm(`Delete tag ${tag.name}?`);
 
     if (!confirmed) {
@@ -751,6 +874,7 @@ export function Dashboard({
 
   function handleHostSelection(hostId: string) {
     setSelectedHostId(hostId);
+    setActiveSection("monitor");
     setActiveTab("processes");
   }
 
@@ -769,15 +893,15 @@ export function Dashboard({
           setHostModalOpen(false);
         }}
         onSubmit={handleHostSave}
-        open={hostModalOpen}
+        open={canManageWorkspace && hostModalOpen}
         tags={tags}
       />
 
-      <div className="min-h-screen px-3 py-3 sm:px-4 sm:py-4">
-        <div className="mx-auto flex max-w-[1800px] flex-col gap-3">
-          <header className="panel flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <div className="h-screen overflow-hidden px-3 py-3 sm:px-4 sm:py-4">
+        <div className="mx-auto flex h-full max-w-[1800px] flex-col gap-3">
+          <header className="panel flex flex-wrap items-center justify-between gap-3 px-3 py-2.5">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-[0.95rem] bg-[color:var(--accent-soft)] text-[color:var(--accent)]">
+              <div className="flex size-9 items-center justify-center rounded-[0.9rem] bg-[color:var(--accent-soft)] text-[color:var(--accent)]">
                 <Shield className="size-[18px]" />
               </div>
               <div>
@@ -790,6 +914,25 @@ export function Dashboard({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1 rounded-[0.9rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] p-1">
+                <button
+                  className="button-tab"
+                  data-active={activeSection === "monitor"}
+                  onClick={() => setActiveSection("monitor")}
+                  type="button"
+                >
+                  Monitor
+                </button>
+                <button
+                  className="button-tab"
+                  data-active={activeSection === "settings"}
+                  onClick={() => setActiveSection("settings")}
+                  type="button"
+                >
+                  <Cog className="mr-2 size-4" />
+                  Settings
+                </button>
+              </div>
               <ThemeMenu
                 activeThemeId={activeThemeId}
                 busy={themeBusy}
@@ -799,12 +942,22 @@ export function Dashboard({
                 onSelectTheme={handleThemeSelect}
                 savedThemeId={user.settings.themeId}
               />
-              <div className="rounded-[0.95rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] px-3 py-2 text-right">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-[color:var(--text-soft)]">
-                  Signed in
-                </div>
-                <div className="max-w-[18rem] truncate text-sm font-medium text-[color:var(--text)]">
-                  {user.email}
+              <div className="rounded-[0.9rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`badge border-transparent ${
+                      user.role === "OWNER"
+                        ? "bg-[color:var(--accent-soft)] text-[color:var(--accent)]"
+                        : user.role === "ADMIN"
+                          ? "bg-[color:var(--warning-soft)] text-[color:var(--warning)]"
+                          : ""
+                    }`}
+                  >
+                    {user.role}
+                  </span>
+                  <div className="max-w-[18rem] truncate text-sm font-medium text-[color:var(--text)]">
+                    {user.email}
+                  </div>
                 </div>
               </div>
               <button className="button-secondary" onClick={handleSignOut} type="button">
@@ -826,7 +979,25 @@ export function Dashboard({
             </div>
           ) : null}
 
-          <div className="flex min-h-[calc(100vh-8rem)] flex-col gap-3 lg:flex-row">
+          {activeSection === "settings" ? (
+            <SettingsPanel
+              canManageUsers={canManageUsers}
+              currentUser={user}
+              onCreateUser={handleUserCreate}
+              onDeleteUser={handleUserDelete}
+              onProfileSave={handleProfileSave}
+              onRefreshUsers={loadUsers}
+              onSettingsTabChange={setSettingsTab}
+              onThemeSelect={handleThemeSelect}
+              onUpdateUser={handleUserUpdate}
+              settingsTab={settingsTab}
+              themeBusy={themeBusy}
+              users={users}
+              usersBusy={usersBusy}
+              usersError={usersError}
+            />
+          ) : (
+          <div className="min-h-0 flex flex-1 flex-col gap-3 lg:flex-row">
             <aside
               className={`panel flex min-h-0 shrink-0 flex-col overflow-hidden ${
                 sidebarCollapsed ? "lg:w-[5.25rem]" : "lg:w-[21rem]"
@@ -853,18 +1024,20 @@ export function Dashboard({
                         <PanelLeftClose className="size-4" />
                       )}
                     </button>
-                    <button
-                      className={`${sidebarCollapsed ? "button-ghost h-8 w-8 p-0" : "button-primary"}`}
-                      onClick={() => {
-                        setEditingHost(null);
-                        setHostModalOpen(true);
-                      }}
-                      title="Add host"
-                      type="button"
-                    >
-                      <Plus className={`size-4 ${sidebarCollapsed ? "" : "mr-2"}`} />
-                      {sidebarCollapsed ? <span className="sr-only">Add host</span> : "Add host"}
-                    </button>
+                    {canManageWorkspace ? (
+                      <button
+                        className={`${sidebarCollapsed ? "button-ghost h-8 w-8 p-0" : "button-primary"}`}
+                        onClick={() => {
+                          setEditingHost(null);
+                          setHostModalOpen(true);
+                        }}
+                        title="Add host"
+                        type="button"
+                      >
+                        <Plus className={`size-4 ${sidebarCollapsed ? "" : "mr-2"}`} />
+                        {sidebarCollapsed ? <span className="sr-only">Add host</span> : "Add host"}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
 
@@ -923,7 +1096,9 @@ export function Dashboard({
                 ) : filteredHosts.length === 0 ? (
                   <div className="flex h-full items-center justify-center p-4 text-center text-sm text-[color:var(--text-muted)]">
                     {hosts.length === 0
-                      ? "Add your first SSH host to begin remote PM2 monitoring."
+                      ? canManageWorkspace
+                        ? "Add your first SSH host to begin remote PM2 monitoring."
+                        : "No shared hosts are available yet. Ask an owner or admin to add one."
                       : "No hosts match the current search or tag filters."}
                   </div>
                 ) : sidebarCollapsed ? (
@@ -1004,44 +1179,46 @@ export function Dashboard({
                               </div>
                             </div>
 
-                            <div className="flex shrink-0 items-start gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-                              <button
-                                className="button-ghost h-8 w-8 p-0"
-                                disabled={busy}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  void handleHostTest(host);
-                                }}
-                                title="Test connection"
-                                type="button"
-                              >
-                                <RefreshCw className="size-4" />
-                              </button>
-                              <button
-                                className="button-ghost h-8 w-8 p-0"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setEditingHost(host);
-                                  setHostModalOpen(true);
-                                }}
-                                title="Edit host"
-                                type="button"
-                              >
-                                <PencilLine className="size-4" />
-                              </button>
-                              <button
-                                className="button-ghost h-8 w-8 p-0"
-                                disabled={busy}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  void handleHostDelete(host);
-                                }}
-                                title="Delete host"
-                                type="button"
-                              >
-                                <Trash2 className="size-4" />
-                              </button>
-                            </div>
+                            {canManageWorkspace ? (
+                              <div className="flex shrink-0 items-start gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                                <button
+                                  className="button-ghost h-8 w-8 p-0"
+                                  disabled={busy}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void handleHostTest(host);
+                                  }}
+                                  title="Test connection"
+                                  type="button"
+                                >
+                                  <RefreshCw className="size-4" />
+                                </button>
+                                <button
+                                  className="button-ghost h-8 w-8 p-0"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setEditingHost(host);
+                                    setHostModalOpen(true);
+                                  }}
+                                  title="Edit host"
+                                  type="button"
+                                >
+                                  <PencilLine className="size-4" />
+                                </button>
+                                <button
+                                  className="button-ghost h-8 w-8 p-0"
+                                  disabled={busy}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void handleHostDelete(host);
+                                  }}
+                                  title="Delete host"
+                                  type="button"
+                                >
+                                  <Trash2 className="size-4" />
+                                </button>
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       );
@@ -1050,8 +1227,8 @@ export function Dashboard({
                 )}
               </div>
 
-              {!sidebarCollapsed ? (
-                <div className="border-t border-[color:var(--border)] px-3 py-3">
+              {!sidebarCollapsed && canManageWorkspace ? (
+                <div className="shrink-0 border-t border-[color:var(--border)] px-3 py-3">
                   <button
                     className="button-ghost w-full justify-between px-0"
                     onClick={() => setTagManagerOpen((current) => !current)}
@@ -1198,7 +1375,7 @@ export function Dashboard({
               </section>
 
               {activeTab === "processes" ? (
-                <section className="panel flex min-h-[26rem] flex-1 flex-col overflow-hidden">
+                <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
                   <div className="border-b border-[color:var(--border)] px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="relative min-w-[15rem] flex-1">
@@ -1373,7 +1550,9 @@ export function Dashboard({
                     const output = visibleLogLines
                       .map(
                         (line) =>
-                          `[${line.timestamp}] [${line.source}] [${line.processLabel}] ${line.line}`
+                          `[${line.timestamp}] [${line.processLabel}] ${
+                            line.source === "stderr" ? "[stderr] " : ""
+                          }${line.line}`
                       )
                       .join("\n");
                     const blob = new Blob([output], { type: "text/plain;charset=utf-8" });
@@ -1413,6 +1592,7 @@ export function Dashboard({
               )}
             </main>
           </div>
+          )}
         </div>
       </div>
     </>

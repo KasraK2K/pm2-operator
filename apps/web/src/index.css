@@ -319,14 +319,14 @@
 
 @layer components {
   .panel {
-    @apply rounded-[1.1rem] border backdrop-blur-md;
+    @apply rounded-[1rem] border backdrop-blur-md;
     border-color: var(--border);
     background: var(--surface);
     box-shadow: var(--shadow-panel);
   }
 
   .panel-soft {
-    @apply rounded-[1rem] border;
+    @apply rounded-[0.9rem] border;
     border-color: var(--border);
     background: var(--surface-soft);
   }
@@ -337,7 +337,7 @@
   }
 
   .field {
-    @apply w-full rounded-[0.9rem] border px-3 py-2 text-sm outline-none transition;
+    @apply w-full rounded-[0.8rem] border px-3 py-1.5 text-sm outline-none transition;
     border-color: var(--border);
     background: var(--surface-strong);
     color: var(--text);
@@ -371,7 +371,7 @@
   }
 
   .button-primary {
-    @apply inline-flex items-center justify-center rounded-[0.9rem] px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-[0.8rem] px-3 py-1.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50;
     background: var(--accent);
     color: var(--accent-contrast);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
@@ -382,7 +382,7 @@
   }
 
   .button-secondary {
-    @apply inline-flex items-center justify-center rounded-[0.9rem] border px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-[0.8rem] border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50;
     border-color: var(--border);
     background: var(--surface-soft);
     color: var(--text);
@@ -394,7 +394,7 @@
   }
 
   .button-ghost {
-    @apply inline-flex items-center justify-center rounded-[0.8rem] px-2.5 py-1.5 text-sm font-medium;
+    @apply inline-flex items-center justify-center rounded-[0.75rem] px-2.5 py-1 text-sm font-medium;
     color: var(--text-muted);
   }
 
@@ -404,7 +404,7 @@
   }
 
   .button-tab {
-    @apply inline-flex items-center justify-center rounded-[0.8rem] border px-3 py-1.5 text-sm font-medium;
+    @apply inline-flex items-center justify-center rounded-[0.75rem] border px-2.5 py-1 text-sm font-medium;
     border-color: transparent;
     color: var(--text-muted);
     background: transparent;
@@ -423,14 +423,14 @@
   }
 
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium;
+    @apply inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium;
     border-color: var(--border);
     background: var(--surface-soft);
     color: var(--text-muted);
   }
 
   .flash {
-    @apply rounded-[0.95rem] border px-3 py-2 text-sm;
+    @apply rounded-[0.85rem] border px-3 py-2 text-sm;
   }
 
   .flash[data-tone="success"] {
@@ -452,7 +452,7 @@
   }
 
   .theme-card {
-    @apply rounded-[1rem] border p-3;
+    @apply rounded-[0.9rem] border p-3;
     border-color: var(--border);
     background: var(--surface-soft);
   }
@@ -469,7 +469,7 @@
   }
 
   .host-row {
-    @apply rounded-[0.95rem] border p-3;
+    @apply rounded-[0.85rem] border p-2.5;
     border-color: transparent;
     background: transparent;
   }
@@ -489,7 +489,7 @@
   }
 
   .log-row {
-    @apply rounded-[0.9rem] border px-3 py-2;
+    @apply rounded-[0.8rem] border px-3 py-1.5;
     border-color: transparent;
     background: var(--terminal-line);
   }

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 
+import { AuthScreen } from "./components/AuthScreen";
+import { Dashboard } from "./components/Dashboard";
 import { api, ApiError } from "./lib/api";
 import type { User } from "./lib/types";
 import { useTheme } from "./lib/useTheme";
-import { AuthScreen } from "./components/AuthScreen";
-import { Dashboard } from "./components/Dashboard";
 
 const ACCESS_TOKEN_KEY = "pm2-log-viewer.access-token";
 
@@ -18,7 +18,8 @@ function persistAccessToken(token: string | null) {
 }
 
 export default function App() {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "bootstrap">("login");
+  const [ownerExists, setOwnerExists] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [booting, setBooting] = useState(true);
@@ -35,6 +36,8 @@ export default function App() {
           const me = await api.me(storedToken);
           setUser(me.user);
           setAccessToken(storedToken);
+          setOwnerExists(true);
+          setMode("login");
           setBooting(false);
           return;
         }
@@ -47,8 +50,20 @@ export default function App() {
         setUser(session.user);
         setAccessToken(session.accessToken);
         persistAccessToken(session.accessToken);
+        setOwnerExists(true);
+        setMode("login");
       } catch {
         persistAccessToken(null);
+
+        try {
+          const status = await api.bootstrapStatus();
+          setOwnerExists(status.ownerExists);
+          setMode(status.ownerExists ? "login" : "bootstrap");
+        } catch {
+          setOwnerExists(true);
+          setMode("login");
+          setAuthError("Unable to load workspace bootstrap state.");
+        }
       } finally {
         setBooting(false);
       }
@@ -58,7 +73,7 @@ export default function App() {
   }, []);
 
   const handleAuthSubmit = async (
-    nextMode: "login" | "register",
+    nextMode: "login" | "bootstrap",
     email: string,
     password: string
   ) => {
@@ -67,10 +82,12 @@ export default function App() {
 
     try {
       const session =
-        nextMode === "login" ? await api.login(email, password) : await api.register(email, password);
+        nextMode === "login" ? await api.login(email, password) : await api.bootstrap(email, password);
 
       setUser(session.user);
       setAccessToken(session.accessToken);
+      setOwnerExists(true);
+      setMode("login");
       persistAccessToken(session.accessToken);
     } catch (error) {
       setAuthError(error instanceof ApiError ? error.message : "Authentication failed.");
@@ -83,6 +100,11 @@ export default function App() {
     setUser(nextUser);
     setAccessToken(nextAccessToken);
     persistAccessToken(nextAccessToken);
+
+    if (!nextUser) {
+      setOwnerExists(true);
+      setMode("login");
+    }
   };
 
   if (booting) {
@@ -103,7 +125,7 @@ export default function App() {
         busy={authBusy}
         error={authError}
         mode={mode}
-        onModeChange={setMode}
+        ownerExists={ownerExists}
         onSubmit={handleAuthSubmit}
       />
     );

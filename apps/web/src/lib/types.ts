@@ -1,11 +1,19 @@
 import type { ThemeId } from "./themes";
 
+export type UserRole = "OWNER" | "ADMIN" | "MEMBER";
+
 export interface User {
   id: string;
   email: string;
+  role: UserRole;
   settings: {
     themeId: ThemeId;
   };
+}
+
+export interface ManagedUser extends User {
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Tag {

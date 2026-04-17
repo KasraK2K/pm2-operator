@@ -90,10 +90,9 @@ export function serializeHost(host: HostWithTags) {
   };
 }
 
-export async function getHostForUser(hostId: string, userId: string) {
+export async function getHostById(hostId: string) {
   return prisma.sshHost.findFirst({
-    where: { id: hostId, userId },
+    where: { id: hostId },
     include: hostSummaryInclude
   });
 }
-

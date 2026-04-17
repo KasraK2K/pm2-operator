@@ -1,23 +1,23 @@
 import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface AuthScreenProps {
-  mode: "login" | "register";
+  mode: "login" | "bootstrap";
+  ownerExists: boolean;
   busy: boolean;
   error: string | null;
-  onModeChange: (mode: "login" | "register") => void;
-  onSubmit: (mode: "login" | "register", email: string, password: string) => Promise<void>;
+  onSubmit: (mode: "login" | "bootstrap", email: string, password: string) => Promise<void>;
 }
 
-export function AuthScreen({
-  mode,
-  busy,
-  error,
-  onModeChange,
-  onSubmit
-}: AuthScreenProps) {
+export function AuthScreen({ mode, ownerExists, busy, error, onSubmit }: AuthScreenProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    setPassword("");
+  }, [mode]);
+
+  const createOwner = mode === "bootstrap";
 
   return (
     <div className="min-h-screen px-4 py-4">
@@ -65,35 +65,24 @@ export function AuthScreen({
         <section className="panel flex min-h-[34rem] items-center justify-center px-5 py-6 sm:px-8">
           <div className="w-full max-w-md space-y-6">
             <div className="space-y-3">
-              <div className="inline-flex rounded-full border border-[color:var(--border)] bg-[color:var(--surface-soft)] p-1">
-                <button
-                  className="button-tab"
-                  data-active={mode === "login"}
-                  onClick={() => onModeChange("login")}
-                  type="button"
-                >
-                  Sign in
-                </button>
-                <button
-                  className="button-tab"
-                  data-active={mode === "register"}
-                  onClick={() => onModeChange("register")}
-                  type="button"
-                >
-                  Create account
-                </button>
-              </div>
-
               <div>
-                <div className="section-kicker">Operator access</div>
+                <div className="section-kicker">
+                  {createOwner ? "Workspace bootstrap" : "Operator access"}
+                </div>
                 <h2 className="mt-2 text-3xl font-semibold text-[color:var(--text)]">
-                  {mode === "login" ? "Welcome back" : "Create your workspace"}
+                  {createOwner ? "Create the owner account" : "Sign in to your workspace"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
-                  {mode === "login"
-                    ? "Resume your host inventory, process triage, and live log sessions."
-                    : "Start a private PM2 operations workspace tied to your account-wide settings."}
+                  {createOwner
+                    ? "This first account becomes the workspace owner and can invite admins or members later."
+                    : "Resume your host inventory, process triage, live logs, and saved workspace context."}
                 </p>
+              </div>
+
+              <div className="badge">
+                {ownerExists
+                  ? "The workspace owner already exists. Public registration is disabled."
+                  : "No owner account exists yet. Bootstrap is available once."}
               </div>
             </div>
 
@@ -140,7 +129,7 @@ export function AuthScreen({
               ) : null}
 
               <button className="button-primary w-full justify-center" disabled={busy} type="submit">
-                {busy ? "Working..." : mode === "login" ? "Sign in" : "Create account"}
+                {busy ? "Working..." : createOwner ? "Create owner account" : "Sign in"}
               </button>
             </form>
           </div>

@@ -5,9 +5,10 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
 import { writeAuditLog } from "../services/audit.service";
+import { assertWorkspaceManager } from "../services/authorization.service";
 import {
   buildEncryptedSecrets,
-  getHostForUser,
+  getHostById,
   hostSummaryInclude,
   normalizeSecretInput,
   serializeHost
@@ -70,20 +71,19 @@ const testSchema = z.object({
 
 hostRoutes.use(requireAuth);
 
-async function validateTags(userId: string, tagIds: string[]) {
+async function validateTags(tagIds: string[]) {
   if (tagIds.length === 0) {
     return;
   }
 
   const tags = await prisma.tag.findMany({
     where: {
-      id: { in: tagIds },
-      userId
+      id: { in: tagIds }
     }
   });
 
   if (tags.length !== tagIds.length) {
-    throw new AppError(400, "INVALID_TAGS", "One or more tags do not belong to the authenticated user.");
+    throw new AppError(400, "INVALID_TAGS", "One or more tags do not exist.");
   }
 }
 
@@ -117,9 +117,7 @@ hostRoutes.get(
       )
       .parse(request.query.tagIds);
 
-    const where: Prisma.SshHostWhereInput = {
-      userId: request.auth!.userId
-    };
+    const where: Prisma.SshHostWhereInput = {};
 
     if (search) {
       where.OR = [
@@ -150,8 +148,10 @@ hostRoutes.get(
 hostRoutes.post(
   "/",
   asyncHandler(async (request, response) => {
+    assertWorkspaceManager(request.auth!.role);
+
     const body = createHostSchema.parse(request.body);
-    await validateTags(request.auth!.userId, body.tagIds);
+    await validateTags(body.tagIds);
 
     const host = await prisma.sshHost.create({
       data: {
@@ -186,7 +186,7 @@ hostRoutes.get(
   "/:id",
   asyncHandler(async (request, response) => {
     const hostId = z.string().parse(request.params.id);
-    const host = await getHostForUser(hostId, request.auth!.userId);
+    const host = await getHostById(hostId);
 
     if (!host) {
       throw new AppError(404, "HOST_NOT_FOUND", "SSH host not found.");
@@ -199,16 +199,18 @@ hostRoutes.get(
 hostRoutes.patch(
   "/:id",
   asyncHandler(async (request, response) => {
+    assertWorkspaceManager(request.auth!.role);
+
     const hostId = z.string().parse(request.params.id);
     const body = updateHostSchema.parse(request.body);
-    const existing = await getHostForUser(hostId, request.auth!.userId);
+    const existing = await getHostById(hostId);
 
     if (!existing) {
       throw new AppError(404, "HOST_NOT_FOUND", "SSH host not found.");
     }
 
     if (body.tagIds) {
-      await validateTags(request.auth!.userId, body.tagIds);
+      await validateTags(body.tagIds);
     }
 
     const nextAuthType = body.authType ?? existing.authType;
@@ -263,8 +265,10 @@ hostRoutes.patch(
 hostRoutes.delete(
   "/:id",
   asyncHandler(async (request, response) => {
+    assertWorkspaceManager(request.auth!.role);
+
     const hostId = z.string().parse(request.params.id);
-    const existing = await getHostForUser(hostId, request.auth!.userId);
+    const existing = await getHostById(hostId);
 
     if (!existing) {
       throw new AppError(404, "HOST_NOT_FOUND", "SSH host not found.");
@@ -286,12 +290,13 @@ hostRoutes.delete(
 hostRoutes.post(
   "/:id/test",
   asyncHandler(async (request, response) => {
+    assertWorkspaceManager(request.auth!.role);
+
     const hostId = z.string().parse(request.params.id);
     const body = testSchema.parse(request.body ?? {});
-    const host = await prisma.sshHost.findFirst({
+    const host = await prisma.sshHost.findUnique({
       where: {
-        id: hostId,
-        userId: request.auth!.userId
+        id: hostId
       }
     });
 
@@ -335,10 +340,9 @@ hostRoutes.get(
   "/:id/processes",
   asyncHandler(async (request, response) => {
     const hostId = z.string().parse(request.params.id);
-    const host = await prisma.sshHost.findFirst({
+    const host = await prisma.sshHost.findUnique({
       where: {
-        id: hostId,
-        userId: request.auth!.userId
+        id: hostId
       }
     });
 

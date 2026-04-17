@@ -1,5 +1,7 @@
 import type { Server as HttpServer } from "http";
 
+import { UserRole } from "@prisma/client";
+
 import { Server } from "socket.io";
 import { z } from "zod";
 
@@ -130,7 +132,7 @@ export function createSocketServer(server: HttpServer) {
   });
 
   io.on("connection", (socket) => {
-    const user = socket.data.user as { userId: string; email: string };
+    const user = socket.data.user as { userId: string; email: string; role: UserRole };
 
     const stopCurrentStream = async (options?: { suppressStatus?: boolean }) => {
       const current = activeStreams.get(socket.id);
@@ -157,8 +159,8 @@ export function createSocketServer(server: HttpServer) {
         const targets = normalizeTargets(payload);
         await stopCurrentStream({ suppressStatus: true });
 
-        const host = await prisma.sshHost.findFirst({
-          where: { id: payload.hostId, userId: user.userId }
+        const host = await prisma.sshHost.findUnique({
+          where: { id: payload.hostId }
         });
 
         if (!host) {

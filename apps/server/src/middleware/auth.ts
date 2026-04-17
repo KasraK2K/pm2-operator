@@ -16,11 +16,11 @@ export function requireAuth(request: Request, _response: Response, next: NextFun
     const payload = verifyAccessToken(token);
     request.auth = {
       userId: payload.userId,
-      email: payload.email
+      email: payload.email,
+      role: payload.role
     };
     next();
   } catch {
     next(new AppError(401, "UNAUTHORIZED", "Access token is invalid or expired."));
   }
 }
-

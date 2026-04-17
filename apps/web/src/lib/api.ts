@@ -2,9 +2,11 @@ import type {
   ConnectionResult,
   Host,
   HostPayload,
+  ManagedUser,
   Pm2Process,
   Tag,
-  User
+  User,
+  UserRole
 } from "./types";
 import type { ThemeId } from "./themes";
 
@@ -61,6 +63,15 @@ async function request<T>(
 }
 
 export const api = {
+  bootstrapStatus() {
+    return request<{ ownerExists: boolean }>("/auth/bootstrap-status");
+  },
+  bootstrap(email: string, password: string) {
+    return request<{ user: User; accessToken: string }>("/auth/bootstrap", {
+      method: "POST",
+      body: JSON.stringify({ email, password })
+    });
+  },
   register(email: string, password: string) {
     return request<{ user: User; accessToken: string }>("/auth/register", {
       method: "POST",
@@ -89,6 +100,16 @@ export const api = {
   },
   updateSettings(token: string, payload: { themeId: ThemeId }) {
     return request<{ user: User }>("/auth/settings", {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(payload)
+    });
+  },
+  updateProfile(
+    token: string,
+    payload: { email?: string; currentPassword: string; newPassword?: string }
+  ) {
+    return request<{ user: User; accessToken: string }>("/auth/settings/profile", {
       method: "PATCH",
       token,
       body: JSON.stringify(payload)
@@ -152,6 +173,36 @@ export const api = {
   },
   deleteTag(token: string, tagId: string) {
     return request<void>(`/tags/${tagId}`, {
+      method: "DELETE",
+      token
+    });
+  },
+  getUsers(token: string) {
+    return request<{ users: ManagedUser[] }>("/users", { token });
+  },
+  createUser(
+    token: string,
+    payload: { email: string; password: string; role: UserRole }
+  ) {
+    return request<{ user: ManagedUser }>("/users", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload)
+    });
+  },
+  updateUser(
+    token: string,
+    userId: string,
+    payload: { email?: string; password?: string; role?: UserRole }
+  ) {
+    return request<{ user: ManagedUser }>(`/users/${userId}`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(payload)
+    });
+  },
+  deleteUser(token: string, userId: string) {
+    return request<void>(`/users/${userId}`, {
       method: "DELETE",
       token
     });

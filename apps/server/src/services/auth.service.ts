@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "crypto";
 
+import { UserRole } from "@prisma/client";
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 
@@ -12,6 +13,7 @@ const REFRESH_COOKIE_NAME = "pm2lv_refresh";
 export interface AuthUser {
   userId: string;
   email: string;
+  role: UserRole;
 }
 
 export interface AuthSession {
@@ -48,7 +50,8 @@ export async function verifyPassword(hash: string, password: string) {
 export function createAccessToken(payload: AuthUser) {
   return jwt.sign(
     {
-      email: payload.email
+      email: payload.email,
+      role: payload.role
     },
     env.JWT_ACCESS_SECRET,
     {
@@ -64,14 +67,17 @@ export function verifyAccessToken(token: string): AuthUser {
   if (
     typeof decoded !== "object" ||
     typeof decoded.sub !== "string" ||
-    typeof decoded.email !== "string"
+    typeof decoded.email !== "string" ||
+    typeof decoded.role !== "string" ||
+    !Object.values(UserRole).includes(decoded.role as UserRole)
   ) {
     throw new AppError(401, "INVALID_TOKEN", "Invalid access token.");
   }
 
   return {
     userId: decoded.sub,
-    email: decoded.email
+    email: decoded.email,
+    role: decoded.role as UserRole
   };
 }
 
@@ -114,7 +120,15 @@ export async function rotateRefreshToken(
 ): Promise<AuthSession & { user: AuthUser }> {
   const existing = await prisma.refreshToken.findUnique({
     where: { tokenHash: hashToken(refreshToken) },
-    include: { user: true }
+    include: {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          role: true
+        }
+      }
+    }
   });
 
   if (!existing || existing.revokedAt || existing.expiresAt.getTime() < Date.now()) {
@@ -135,7 +149,8 @@ export async function rotateRefreshToken(
 
   const user = {
     userId: existing.user.id,
-    email: existing.user.email
+    email: existing.user.email,
+    role: existing.user.role
   };
 
   return {
@@ -160,4 +175,3 @@ export async function revokeRefreshToken(refreshToken: string | undefined) {
     }
   });
 }
-

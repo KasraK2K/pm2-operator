@@ -3,12 +3,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
   user: {
+    count: vi.fn(),
+    findFirst: vi.fn(),
     findUnique: vi.fn(),
-    create: vi.fn()
+    create: vi.fn(),
+    update: vi.fn()
   },
   userPreference: {
     upsert: vi.fn(),
     update: vi.fn()
+  },
+  refreshToken: {
+    create: vi.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn(),
+    updateMany: vi.fn()
+  },
+  auditLog: {
+    create: vi.fn()
   }
 }));
 
@@ -20,6 +32,7 @@ const authServiceMock = vi.hoisted(() => ({
     path: "/auth",
     maxAge: 1_000
   })),
+  createAccessToken: vi.fn(() => "updated-access-token"),
   createAuthSession: vi.fn(),
   getRefreshCookieName: vi.fn(() => "pm2lv_refresh"),
   hashPassword: vi.fn(),
@@ -29,17 +42,11 @@ const authServiceMock = vi.hoisted(() => ({
   verifyAccessToken: vi.fn()
 }));
 
-const auditLogMock = vi.hoisted(() => ({
-  writeAuditLog: vi.fn()
-}));
-
 vi.mock("../lib/prisma", () => ({
   prisma: prismaMock
 }));
 
 vi.mock("../services/auth.service", () => authServiceMock);
-
-vi.mock("../services/audit.service", () => auditLogMock);
 
 import { createApp } from "../app";
 
@@ -47,6 +54,8 @@ describe("auth.routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    prismaMock.user.count.mockResolvedValue(0);
+    prismaMock.user.findFirst.mockResolvedValue(null);
     authServiceMock.hashPassword.mockResolvedValue("hashed-password");
     authServiceMock.createAuthSession.mockResolvedValue({
       accessToken: "access-token",
@@ -57,29 +66,39 @@ describe("auth.routes", () => {
       refreshToken: "rotated-refresh-token",
       user: {
         userId: "user-1",
-        email: "operator@example.com"
+        email: "owner@example.com",
+        role: "OWNER"
       }
     });
     authServiceMock.verifyPassword.mockResolvedValue(true);
     authServiceMock.verifyAccessToken.mockReturnValue({
       userId: "user-1",
-      email: "operator@example.com"
+      email: "owner@example.com",
+      role: "OWNER"
     });
   });
 
-  it("returns default theme settings on register", async () => {
-    prismaMock.user.findUnique.mockResolvedValueOnce(null);
+  it("reports bootstrap status before the owner exists", async () => {
+    const app = createApp();
+    const response = await request(app).get("/auth/bootstrap-status");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ ownerExists: false });
+  });
+
+  it("creates the owner during bootstrap", async () => {
     prismaMock.user.create.mockResolvedValueOnce({
       id: "user-1",
-      email: "operator@example.com",
+      email: "owner@example.com",
+      role: "OWNER",
       preferences: {
         themeId: "midnight-ops"
       }
     });
 
     const app = createApp();
-    const response = await request(app).post("/auth/register").send({
-      email: "operator@example.com",
+    const response = await request(app).post("/auth/bootstrap").send({
+      email: "owner@example.com",
       password: "super-secret"
     });
 
@@ -87,7 +106,8 @@ describe("auth.routes", () => {
     expect(response.body).toEqual({
       user: {
         id: "user-1",
-        email: "operator@example.com",
+        email: "owner@example.com",
+        role: "OWNER",
         settings: {
           themeId: "midnight-ops"
         }
@@ -96,16 +116,29 @@ describe("auth.routes", () => {
     });
   });
 
-  it("returns persisted theme settings on login", async () => {
+  it("blocks public registration", async () => {
+    const app = createApp();
+    const response = await request(app).post("/auth/register").send({
+      email: "owner@example.com",
+      password: "super-secret"
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe("PUBLIC_REGISTRATION_DISABLED");
+  });
+
+  it("returns persisted role and theme on login", async () => {
     prismaMock.user.findUnique
       .mockResolvedValueOnce({
         id: "user-1",
-        email: "operator@example.com",
-        passwordHash: "hashed-password"
+        email: "owner@example.com",
+        passwordHash: "hashed-password",
+        role: "OWNER"
       })
       .mockResolvedValueOnce({
         id: "user-1",
-        email: "operator@example.com",
+        email: "owner@example.com",
+        role: "OWNER",
         preferences: {
           themeId: "graphite"
         }
@@ -113,18 +146,26 @@ describe("auth.routes", () => {
 
     const app = createApp();
     const response = await request(app).post("/auth/login").send({
-      email: "operator@example.com",
+      email: "owner@example.com",
       password: "super-secret"
     });
 
     expect(response.status).toBe(200);
-    expect(response.body.user.settings.themeId).toBe("graphite");
+    expect(response.body.user).toEqual({
+      id: "user-1",
+      email: "owner@example.com",
+      role: "OWNER",
+      settings: {
+        themeId: "graphite"
+      }
+    });
   });
 
-  it("returns theme settings on refresh", async () => {
+  it("returns role and theme on refresh", async () => {
     prismaMock.user.findUnique.mockResolvedValueOnce({
       id: "user-1",
-      email: "operator@example.com",
+      email: "owner@example.com",
+      role: "OWNER",
       preferences: {
         themeId: "ocean-depth"
       }
@@ -138,17 +179,19 @@ describe("auth.routes", () => {
     expect(response.status).toBe(200);
     expect(response.body.user).toEqual({
       id: "user-1",
-      email: "operator@example.com",
+      email: "owner@example.com",
+      role: "OWNER",
       settings: {
         themeId: "ocean-depth"
       }
     });
   });
 
-  it("returns theme settings on me", async () => {
+  it("returns role and theme on me", async () => {
     prismaMock.user.findUnique.mockResolvedValueOnce({
       id: "user-1",
-      email: "operator@example.com",
+      email: "owner@example.com",
+      role: "OWNER",
       preferences: {
         themeId: "terminal-green"
       }
@@ -160,7 +203,14 @@ describe("auth.routes", () => {
       .set("Authorization", "Bearer access-token");
 
     expect(response.status).toBe(200);
-    expect(response.body.user.settings.themeId).toBe("terminal-green");
+    expect(response.body.user).toEqual({
+      id: "user-1",
+      email: "owner@example.com",
+      role: "OWNER",
+      settings: {
+        themeId: "terminal-green"
+      }
+    });
   });
 
   it("updates the authenticated user's theme", async () => {
@@ -170,7 +220,8 @@ describe("auth.routes", () => {
     });
     prismaMock.user.findUnique.mockResolvedValueOnce({
       id: "user-1",
-      email: "operator@example.com"
+      email: "owner@example.com",
+      role: "OWNER"
     });
 
     const app = createApp();
@@ -183,13 +234,53 @@ describe("auth.routes", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.user.settings.themeId).toBe("signal-neon");
-    expect(prismaMock.userPreference.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          userId: "user-1"
-        }
+  });
+
+  it("updates the authenticated user's profile and returns a refreshed access token", async () => {
+    prismaMock.user.findUnique
+      .mockResolvedValueOnce({
+        id: "user-1",
+        email: "owner@example.com",
+        passwordHash: "hashed-password",
+        role: "OWNER"
       })
-    );
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "user-1",
+        email: "lead@example.com",
+        role: "OWNER",
+        preferences: {
+          themeId: "midnight-ops"
+        }
+      });
+    prismaMock.user.update.mockResolvedValueOnce({
+      id: "user-1",
+      email: "lead@example.com",
+      role: "OWNER"
+    });
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/auth/settings/profile")
+      .set("Authorization", "Bearer access-token")
+      .send({
+        email: "lead@example.com",
+        currentPassword: "super-secret",
+        newPassword: "new-secret-123"
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      user: {
+        id: "user-1",
+        email: "lead@example.com",
+        role: "OWNER",
+        settings: {
+          themeId: "midnight-ops"
+        }
+      },
+      accessToken: "updated-access-token"
+    });
   });
 
   it("rejects invalid theme ids", async () => {
