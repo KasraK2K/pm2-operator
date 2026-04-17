@@ -49,6 +49,56 @@ export interface Pm2Process {
   restartCount: number;
 }
 
+export interface HostRuntimeSummary {
+  hostname: string | null;
+  os: string | null;
+  pm2Version: string | null;
+  cpuCores: number | null;
+  totalMemory: number | null;
+  loadAverage: number[];
+}
+
+export interface Pm2DashboardAggregate {
+  totalCpu: number;
+  totalMemory: number;
+  processCount: number;
+  onlineCount: number;
+  stoppedCount: number;
+  erroredCount: number;
+  restartDelta: number;
+}
+
+export interface Pm2DashboardProcessState extends Pm2Process {
+  selectedLabel: string;
+  cwd: string | null;
+  execPath: string | null;
+  execMode: string | null;
+  version: string | null;
+  nodeVersion: string | null;
+  gitBranch: string | null;
+  gitRevision: string | null;
+  repoPath: string | null;
+  unstableRestarts: number;
+  outputLogPath: string | null;
+  errorLogPath: string | null;
+}
+
+export interface Pm2DashboardSnapshot {
+  timestamp: string;
+  fingerprint: string;
+  host: HostRuntimeSummary | null;
+  selection: {
+    hostId: string;
+    targetPmIds: number[];
+    targetLabels: string[];
+    missingTargetPmIds: number[];
+  };
+  aggregate: Pm2DashboardAggregate;
+  processes: Pm2DashboardProcessState[];
+}
+
+export type Pm2DashboardAction = "restart" | "reload";
+
 export interface LogLine {
   sequence: number;
   line: string;

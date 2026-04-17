@@ -4,8 +4,9 @@ import type { ClientChannel, ConnectConfig, PseudoTtyOptions } from "ssh2";
 import { Client } from "ssh2";
 
 import { AppError } from "../utils/app-error";
-import { parsePm2List } from "../utils/pm2";
+import { parsePm2RuntimeProcesses, stripAnsiSequences } from "../utils/pm2";
 import { resolveHostSecrets } from "./host.service";
+import type { HostRuntimeSummary } from "./monitor.service";
 
 interface HostLike {
   host: string;
@@ -30,6 +31,8 @@ interface ShellSession {
   stream: ClientChannel;
   fingerprint: string;
 }
+
+export type Pm2DashboardAction = "restart" | "reload";
 
 function formatFingerprint(key: Buffer) {
   return `SHA256:${createHash("sha256").update(key).digest("base64")}`;
@@ -287,6 +290,42 @@ function buildCombinedOutput(result: CommandResult) {
   return [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
 }
 
+function parsePrefixedValueLine(output: string, prefix: string) {
+  const lines = stripAnsiSequences(output).replace(/\r/g, "").split("\n");
+
+  for (const line of lines) {
+    const index = line.indexOf(prefix);
+
+    if (index === -1) {
+      continue;
+    }
+
+    return line.slice(index + prefix.length).trim() || null;
+  }
+
+  return null;
+}
+
+function parseNumberValue(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseLoadAverageValue(value: string | null) {
+  if (!value) {
+    return [] as number[];
+  }
+
+  return value
+    .split(",")
+    .map((item) => Number(item.trim()))
+    .filter((item) => Number.isFinite(item));
+}
+
 export function isPm2Missing(result: CommandResult) {
   const combined = buildCombinedOutput(result).toLowerCase();
 
@@ -341,14 +380,94 @@ export async function testSshConnection(host: HostLike, options?: { repinFingerp
   };
 }
 
-export async function discoverPm2Processes(host: HostLike) {
+export async function readPm2RuntimeProcesses(host: HostLike) {
   const result = await runShellCommand(host, "pm2 jlist");
 
   ensurePm2Available(result, "pm2 jlist");
 
   return {
     fingerprint: result.fingerprint,
-    processes: parsePm2List(buildCombinedOutput(result))
+    processes: parsePm2RuntimeProcesses(buildCombinedOutput(result))
+  };
+}
+
+export async function discoverPm2Processes(host: HostLike) {
+  const result = await readPm2RuntimeProcesses(host);
+
+  return {
+    fingerprint: result.fingerprint,
+    processes: result.processes.map((process) => ({
+      name: process.name,
+      pmId: process.pmId,
+      status: process.status,
+      pid: process.pid,
+      cpu: process.cpu,
+      memory: process.memory,
+      uptime: process.uptime,
+      restartCount: process.restartCount
+    }))
+  };
+}
+
+export async function readHostRuntimeSummary(host: HostLike): Promise<HostRuntimeSummary | null> {
+  const hostMetricsCommand =
+    "node -e \"const os=require('os'); console.log('hostname=' + os.hostname()); console.log('cpuCores=' + os.cpus().length); console.log('totalMemory=' + os.totalmem()); console.log('loadAverage=' + os.loadavg().join(','));\"";
+
+  const [unameResult, pm2VersionResult, nodeMetricsResult] = await Promise.allSettled([
+    runShellCommand(host, "uname -a"),
+    runShellCommand(host, "pm2 -v"),
+    runShellCommand(host, hostMetricsCommand)
+  ]);
+
+  const os =
+    unameResult.status === "fulfilled"
+      ? unameResult.value.stdout.trim() || buildCombinedOutput(unameResult.value) || null
+      : null;
+
+  const pm2Version =
+    pm2VersionResult.status === "fulfilled" && !isPm2Missing(pm2VersionResult.value)
+      ? extractPm2Version(pm2VersionResult.value) || null
+      : null;
+
+  const nodeMetricsOutput =
+    nodeMetricsResult.status === "fulfilled" ? buildCombinedOutput(nodeMetricsResult.value) : "";
+
+  const summary: HostRuntimeSummary = {
+    hostname: parsePrefixedValueLine(nodeMetricsOutput, "hostname="),
+    os,
+    pm2Version,
+    cpuCores: parseNumberValue(parsePrefixedValueLine(nodeMetricsOutput, "cpuCores=")),
+    totalMemory: parseNumberValue(parsePrefixedValueLine(nodeMetricsOutput, "totalMemory=")),
+    loadAverage: parseLoadAverageValue(parsePrefixedValueLine(nodeMetricsOutput, "loadAverage="))
+  };
+
+  if (
+    !summary.hostname &&
+    !summary.os &&
+    !summary.pm2Version &&
+    summary.cpuCores === null &&
+    summary.totalMemory === null &&
+    summary.loadAverage.length === 0
+  ) {
+    return null;
+  }
+
+  return summary;
+}
+
+export async function runPm2Action(
+  host: HostLike,
+  action: Pm2DashboardAction,
+  processIds: number[]
+) {
+  const args = processIds.map((processId) => escapeShellArg(processId)).join(" ");
+  const result = await runShellCommand(host, `pm2 ${action} ${args}`);
+
+  ensurePm2Available(result, `pm2 ${action}`);
+
+  return {
+    fingerprint: result.fingerprint,
+    output: buildCombinedOutput(result)
   };
 }
 

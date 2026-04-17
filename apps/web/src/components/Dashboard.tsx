@@ -27,10 +27,21 @@ import {
 } from "../lib/dashboard-view-state";
 import { formatBytes, formatLastTested, formatUptime } from "../lib/format";
 import { THEME_LOOKUP, type ThemeId } from "../lib/themes";
-import type { Host, HostPayload, LogLine, ManagedUser, Pm2Process, Tag, User } from "../lib/types";
+import type {
+  Host,
+  HostPayload,
+  LogLine,
+  ManagedUser,
+  Pm2DashboardAction,
+  Pm2DashboardSnapshot,
+  Pm2Process,
+  Tag,
+  User
+} from "../lib/types";
 import { BrandLockup } from "./Brand";
 import { HostModal } from "./HostModal";
 import { LogPanel } from "./LogPanel";
+import { MonitorDashboard, type DashboardHistorySample } from "./MonitorDashboard";
 import { SettingsPanel } from "./SettingsPanel";
 import { ThemeMenu } from "./ThemeMenu";
 
@@ -46,6 +57,7 @@ interface DashboardProps {
 type FlashTone = "success" | "error" | "info";
 
 const CLIENT_LOG_BUFFER_LIMIT = 2000;
+const DASHBOARD_HISTORY_LIMIT = 60;
 
 function statusBadge(status: string) {
   if (status === "online") {
@@ -153,6 +165,11 @@ export function Dashboard({
   const [visibleLogLines, setVisibleLogLines] = useState<LogLine[]>([]);
   const [logStatus, setLogStatus] = useState("idle");
   const [logError, setLogError] = useState<string | null>(null);
+  const [dashboardSnapshot, setDashboardSnapshot] = useState<Pm2DashboardSnapshot | null>(null);
+  const [dashboardHistory, setDashboardHistory] = useState<DashboardHistorySample[]>([]);
+  const [dashboardStatus, setDashboardStatus] = useState("idle");
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [dashboardActionBusyLabel, setDashboardActionBusyLabel] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [scrollLock, setScrollLock] = useState(restoredView?.scrollLock ?? false);
   const [includePattern, setIncludePattern] = useState(restoredView?.includePattern ?? "");
@@ -170,11 +187,19 @@ export function Dashboard({
   const sessionTokenRef = useRef(accessToken);
   const pausedRef = useRef(false);
   const activeLogProcessesRef = useRef<Pm2Process[]>([]);
+  const activeSectionRef = useRef(activeSection);
+  const activeTabRef = useRef(activeTab);
+  const selectedHostIdRef = useRef<string | null>(restoredView?.selectedHostId ?? null);
   const rawLogBufferRef = useRef<LogLine[]>([]);
   const previousHostIdRef = useRef<string | null>(restoredView?.selectedHostId ?? null);
   const restoreLogIdsRef = useRef<number[]>(
     restoredView?.activeSection === "monitor" && restoredView.activeTab === "logs"
       ? restoredView.activeLogProcessIds
+      : []
+  );
+  const restoreDashboardIdsRef = useRef<number[]>(
+    restoredView?.activeSection === "monitor" && restoredView.activeTab === "dashboard"
+      ? restoredView.activeDashboardProcessIds
       : []
   );
   const restoreAttemptedRef = useRef(false);
@@ -196,6 +221,18 @@ export function Dashboard({
   useEffect(() => {
     activeLogProcessesRef.current = activeLogProcesses;
   }, [activeLogProcesses]);
+
+  useEffect(() => {
+    activeSectionRef.current = activeSection;
+  }, [activeSection]);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
+    selectedHostIdRef.current = selectedHostId;
+  }, [selectedHostId]);
 
   useEffect(() => {
     if (!flash) {
@@ -295,6 +332,49 @@ export function Dashboard({
     socketRef.current?.emit("logs:stop");
   }
 
+  function stopDashboard() {
+    socketRef.current?.emit("dashboard:stop");
+  }
+
+  function clearDashboard() {
+    setDashboardSnapshot(null);
+    setDashboardHistory([]);
+    setDashboardError(null);
+    setDashboardActionBusyLabel(null);
+  }
+
+  function getUniqueProcesses(processSelection: Pm2Process | Pm2Process[]) {
+    const nextProcesses = Array.isArray(processSelection) ? processSelection : [processSelection];
+    return [...new Map(nextProcesses.map((process) => [process.pmId, process])).values()];
+  }
+
+  function emitLogStart(hostId: string, processesToStream: Pm2Process[]) {
+    clearLogs();
+    setPaused(false);
+    setLogError(null);
+    setLogStatus("connecting");
+    socketRef.current?.emit("logs:start", {
+      hostId,
+      targets: processesToStream.map((process) => ({
+        processIdOrName: process.pmId,
+        label: process.name
+      })),
+      initialLines
+    });
+  }
+
+  function emitDashboardStart(hostId: string, processesToMonitor: Pm2Process[]) {
+    setDashboardError(null);
+    setDashboardStatus("connecting");
+    socketRef.current?.emit("dashboard:start", {
+      hostId,
+      targets: processesToMonitor.map((process) => ({
+        pmId: process.pmId,
+        label: process.name
+      }))
+    });
+  }
+
   function startLogs(processSelection: Pm2Process | Pm2Process[], hostIdOverride?: string) {
     const hostId = hostIdOverride ?? selectedHostId;
 
@@ -302,8 +382,7 @@ export function Dashboard({
       return;
     }
 
-    const nextProcesses = Array.isArray(processSelection) ? processSelection : [processSelection];
-    const uniqueProcesses = [...new Map(nextProcesses.map((process) => [process.pmId, process])).values()];
+    const uniqueProcesses = getUniqueProcesses(processSelection);
 
     if (uniqueProcesses.length === 0) {
       return;
@@ -312,17 +391,77 @@ export function Dashboard({
     setActiveSection("monitor");
     setActiveTab("logs");
     setActiveLogProcesses(uniqueProcesses);
-    setPaused(false);
-    setLogError(null);
-    clearLogs();
-    setLogStatus("connecting");
-    socketRef.current?.emit("logs:start", {
-      hostId,
-      targets: uniqueProcesses.map((process) => ({
-        processIdOrName: process.pmId,
-        label: process.name
-      })),
-      initialLines
+    setSelectedProcessIds(uniqueProcesses.map((process) => process.pmId));
+    emitLogStart(hostId, uniqueProcesses);
+  }
+
+  function startDashboard(processSelection: Pm2Process | Pm2Process[], hostIdOverride?: string) {
+    const hostId = hostIdOverride ?? selectedHostId;
+
+    if (!hostId) {
+      return;
+    }
+
+    const uniqueProcesses = getUniqueProcesses(processSelection);
+
+    if (uniqueProcesses.length === 0) {
+      return;
+    }
+
+    setActiveSection("monitor");
+    setActiveTab("dashboard");
+    setActiveLogProcesses(uniqueProcesses);
+    setSelectedProcessIds(uniqueProcesses.map((process) => process.pmId));
+    clearDashboard();
+    emitLogStart(hostId, uniqueProcesses);
+  }
+
+  function restartDashboardSession() {
+    const hostId = selectedHostIdRef.current;
+    const processesToMonitor = activeLogProcessesRef.current;
+
+    if (
+      !hostId ||
+      processesToMonitor.length === 0 ||
+      activeSectionRef.current !== "monitor" ||
+      activeTabRef.current !== "dashboard"
+    ) {
+      return;
+    }
+
+    clearDashboard();
+    emitDashboardStart(hostId, processesToMonitor);
+    emitLogStart(hostId, processesToMonitor);
+  }
+
+  function handleDashboardAction(action: Pm2DashboardAction, processIds: number[]) {
+    if (!selectedHostId || processIds.length === 0) {
+      return;
+    }
+
+    const names = activeLogProcesses
+      .filter((process) => processIds.includes(process.pmId))
+      .map((process) => `${process.name} (PM2 ${process.pmId})`);
+    const confirmed = window.confirm(
+      `${action === "restart" ? "Restart" : "Reload"} the following PM2 process${
+        processIds.length === 1 ? "" : "es"
+      }?\n\n${names.join("\n")}`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDashboardActionBusyLabel(
+      `${action === "restart" ? "Restarting" : "Reloading"} ${processIds.length} PM2 process${
+        processIds.length === 1 ? "" : "es"
+      }...`
+    );
+    setDashboardError(null);
+    socketRef.current?.emit("dashboard:action", {
+      hostId: selectedHostId,
+      action,
+      targetPmIds: processIds
     });
   }
 
@@ -393,7 +532,30 @@ export function Dashboard({
           });
         }
 
-        if (activeSection === "monitor" && activeTab === "logs" && restoreLogIdsRef.current.length > 0) {
+        if (activeSection === "monitor" && activeTab === "dashboard" && restoreDashboardIdsRef.current.length > 0) {
+          const restoredProcesses = nextProcesses.filter((process) =>
+            restoreDashboardIdsRef.current.includes(process.pmId)
+          );
+
+          if (restoredProcesses.length > 0) {
+            if (restoredProcesses.length !== restoreDashboardIdsRef.current.length) {
+              setFlash({
+                tone: "info",
+                text: "Some saved dashboard targets were missing, but the remaining PM2 services were restored."
+              });
+            }
+
+            startDashboard(restoredProcesses, hostId);
+          } else {
+            setActiveTab("processes");
+            setFlash({
+              tone: "info",
+              text: "Saved dashboard targets were not available anymore, so the workspace returned to the Processes view."
+            });
+          }
+
+          restoreDashboardIdsRef.current = [];
+        } else if (activeSection === "monitor" && activeTab === "logs" && restoreLogIdsRef.current.length > 0) {
           const restoredProcesses = nextProcesses.filter((process) =>
             restoreLogIdsRef.current.includes(process.pmId)
           );
@@ -442,12 +604,15 @@ export function Dashboard({
 
     if (!selectedHostId) {
       stopLogs();
+      stopDashboard();
       setProcesses([]);
       setSelectedProcessIds([]);
       setActiveLogProcesses([]);
       setProcessesError(null);
       setLogStatus("idle");
+      setDashboardStatus("idle");
       clearLogs();
+      clearDashboard();
       previousHostIdRef.current = null;
       return;
     }
@@ -457,11 +622,14 @@ export function Dashboard({
 
     if (hostChanged) {
       stopLogs();
+      stopDashboard();
       clearLogs();
+      clearDashboard();
       setActiveLogProcesses([]);
       setSelectedProcessIds([]);
       setLogStatus("idle");
       setLogError(null);
+      setDashboardStatus("idle");
 
       if (restoreAttemptedRef.current) {
         setActiveTab("processes");
@@ -483,13 +651,36 @@ export function Dashboard({
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      if (activeLogProcessesRef.current.length === 0) {
+      const hostId = selectedHostIdRef.current;
+      const targets = activeLogProcessesRef.current;
+
+      if (activeSectionRef.current === "monitor" && hostId && targets.length > 0) {
+        if (activeTabRef.current === "logs" || activeTabRef.current === "dashboard") {
+          emitLogStart(hostId, targets);
+        }
+
+        if (activeTabRef.current === "dashboard") {
+          emitDashboardStart(hostId, targets);
+        }
+      } else {
         setLogStatus("idle");
+        setDashboardStatus("idle");
       }
     });
 
     socket.on("disconnect", () => {
-      setLogStatus(activeLogProcessesRef.current.length > 0 ? "disconnected" : "idle");
+      setLogStatus(
+        activeSectionRef.current === "monitor" && activeLogProcessesRef.current.length > 0
+          ? "disconnected"
+          : "idle"
+      );
+      setDashboardStatus(
+        activeSectionRef.current === "monitor" &&
+          activeTabRef.current === "dashboard" &&
+          activeLogProcessesRef.current.length > 0
+          ? "disconnected"
+          : "idle"
+      );
     });
 
     socket.on("logs:status", (payload: { state: string }) => {
@@ -504,6 +695,52 @@ export function Dashboard({
       setLogStatus("error");
       setLogError(payload.message);
     });
+
+    socket.on("dashboard:status", (payload: { state: string }) => {
+      setDashboardStatus(payload.state);
+
+      if (payload.state === "stopped") {
+        setDashboardActionBusyLabel(null);
+      }
+    });
+
+    socket.on("dashboard:snapshot", (snapshot: Pm2DashboardSnapshot) => {
+      setDashboardSnapshot(snapshot);
+      setDashboardError(null);
+      setDashboardStatus("streaming");
+      setDashboardHistory((current) =>
+        [
+          ...current,
+          {
+            timestamp: snapshot.timestamp,
+            totalCpu: snapshot.aggregate.totalCpu,
+            totalMemory: snapshot.aggregate.totalMemory
+          }
+        ].slice(-DASHBOARD_HISTORY_LIMIT)
+      );
+    });
+
+    socket.on("dashboard:error", (payload: { message: string }) => {
+      setDashboardStatus("error");
+      setDashboardActionBusyLabel(null);
+      setDashboardError(payload.message);
+    });
+
+    socket.on(
+      "dashboard:action-result",
+      (payload: {
+        success: boolean;
+        action: Pm2DashboardAction;
+        message: string;
+        targetPmIds: number[];
+      }) => {
+        setDashboardActionBusyLabel(null);
+        setFlash({
+          tone: payload.success ? "success" : "error",
+          text: payload.message
+        });
+      }
+    );
 
     socket.on("logs:line", (entry: LogLine) => {
       rawLogBufferRef.current = [...rawLogBufferRef.current, entry].slice(-CLIENT_LOG_BUFFER_LIMIT);
@@ -526,6 +763,21 @@ export function Dashboard({
   }, [includePattern, excludePattern]);
 
   useEffect(() => {
+    if (activeSection !== "monitor" || activeTab !== "dashboard" || !selectedHostId || activeLogProcesses.length === 0) {
+      stopDashboard();
+
+      if (activeTab !== "dashboard") {
+        setDashboardStatus("idle");
+      }
+
+      return;
+    }
+
+    emitDashboardStart(selectedHostId, activeLogProcesses);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLogProcesses, activeSection, activeTab, selectedHostId]);
+
+  useEffect(() => {
     if (canManageUsers) {
       return;
     }
@@ -542,14 +794,14 @@ export function Dashboard({
     if (
       !restoreAttemptedRef.current &&
       activeSection === "monitor" &&
-      activeTab === "logs" &&
-      restoreLogIdsRef.current.length > 0
+      ((activeTab === "logs" && restoreLogIdsRef.current.length > 0) ||
+        (activeTab === "dashboard" && restoreDashboardIdsRef.current.length > 0))
     ) {
       return;
     }
 
     writeDashboardViewState(user.id, {
-      version: 2,
+      version: 3,
       activeSection,
       selectedHostId,
       activeTab,
@@ -560,6 +812,7 @@ export function Dashboard({
       statusFilter,
       selectedProcessIds,
       activeLogProcessIds: activeLogProcesses.map((process) => process.pmId),
+      activeDashboardProcessIds: activeLogProcesses.map((process) => process.pmId),
       includePattern,
       excludePattern,
       initialLines,
@@ -1350,7 +1603,17 @@ export function Dashboard({
                       </button>
                       <button
                         className="button-tab"
+                        data-active={activeTab === "dashboard"}
+                        disabled={activeLogProcesses.length === 0}
+                        onClick={() => setActiveTab("dashboard")}
+                        type="button"
+                      >
+                        Dashboard
+                      </button>
+                      <button
+                        className="button-tab"
                         data-active={activeTab === "logs"}
+                        disabled={activeLogProcesses.length === 0}
                         onClick={() => setActiveTab("logs")}
                         type="button"
                       >
@@ -1394,11 +1657,21 @@ export function Dashboard({
                       <button
                         className="button-primary"
                         disabled={!selectedHost || processesBusy || selectedProcesses.length === 0}
+                        onClick={() => startDashboard(selectedProcesses)}
+                        type="button"
+                      >
+                        <Activity className="mr-2 size-4" />
+                        Open dashboard
+                      </button>
+
+                      <button
+                        className="button-secondary"
+                        disabled={!selectedHost || processesBusy || selectedProcesses.length === 0}
                         onClick={() => startLogs(selectedProcesses)}
                         type="button"
                       >
                         <TerminalSquare className="mr-2 size-4" />
-                        Open selected logs
+                        Open logs
                       </button>
 
                       <button
@@ -1507,13 +1780,22 @@ export function Dashboard({
                               <td className="px-4 py-2.5">{formatUptime(process.uptime)}</td>
                               <td className="px-4 py-2.5">{process.restartCount}</td>
                               <td className="px-4 py-2.5">
-                                <button
-                                  className="button-secondary px-2.5 py-1.5 text-xs"
-                                  onClick={() => startLogs(process)}
-                                  type="button"
-                                >
-                                  Logs
-                                </button>
+                                <div className="flex flex-wrap gap-1.5">
+                                  <button
+                                    className="button-secondary px-2.5 py-1.5 text-xs"
+                                    onClick={() => startDashboard(process)}
+                                    type="button"
+                                  >
+                                    Dashboard
+                                  </button>
+                                  <button
+                                    className="button-secondary px-2.5 py-1.5 text-xs"
+                                    onClick={() => startLogs(process)}
+                                    type="button"
+                                  >
+                                    Logs
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))
@@ -1528,6 +1810,23 @@ export function Dashboard({
                     <span className="badge">Status filter: {statusFilter}</span>
                   </div>
                 </section>
+              ) : activeTab === "dashboard" ? (
+                <MonitorDashboard
+                  actionBusyLabel={dashboardActionBusyLabel}
+                  activeTargets={activeLogProcesses}
+                  canManageActions={canManageWorkspace}
+                  dashboardError={dashboardError}
+                  dashboardStatus={dashboardStatus}
+                  history={dashboardHistory}
+                  host={selectedHost}
+                  logError={logError}
+                  logLines={visibleLogLines}
+                  logStatus={logStatus}
+                  onAction={handleDashboardAction}
+                  onOpenLogs={() => setActiveTab("logs")}
+                  onRefresh={restartDashboardSession}
+                  snapshot={dashboardSnapshot}
+                />
               ) : (
                 <LogPanel
                   bufferedLineCount={rawLogBufferRef.current.length}

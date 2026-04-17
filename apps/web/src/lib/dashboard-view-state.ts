@@ -1,9 +1,9 @@
 export type DashboardSection = "monitor" | "settings";
-export type DashboardTab = "processes" | "logs";
+export type DashboardTab = "processes" | "dashboard" | "logs";
 export type SettingsTab = "profile" | "users";
 
 export interface DashboardViewState {
-  version: 2;
+  version: 3;
   activeSection: DashboardSection;
   selectedHostId: string | null;
   activeTab: DashboardTab;
@@ -13,6 +13,7 @@ export interface DashboardViewState {
   processSearch: string;
   statusFilter: string;
   selectedProcessIds: number[];
+  activeDashboardProcessIds: number[];
   activeLogProcessIds: number[];
   includePattern: string;
   excludePattern: string;
@@ -36,18 +37,24 @@ function isNumberArray(value: unknown): value is number[] {
 }
 
 function normalizeState(parsed: RawDashboardViewState): DashboardViewState {
+  const activeLogProcessIds = isNumberArray(parsed.activeLogProcessIds) ? parsed.activeLogProcessIds : [];
+  const activeDashboardProcessIds = isNumberArray(parsed.activeDashboardProcessIds)
+    ? parsed.activeDashboardProcessIds
+    : activeLogProcessIds;
+
   return {
-    version: 2,
+    version: 3,
     activeSection: parsed.activeSection === "settings" ? "settings" : "monitor",
     selectedHostId: typeof parsed.selectedHostId === "string" ? parsed.selectedHostId : null,
-    activeTab: parsed.activeTab === "logs" ? "logs" : "processes",
+    activeTab: parsed.activeTab === "logs" || parsed.activeTab === "dashboard" ? parsed.activeTab : "processes",
     settingsTab: parsed.settingsTab === "users" ? "users" : "profile",
     hostSearch: typeof parsed.hostSearch === "string" ? parsed.hostSearch : "",
     selectedTagFilters: isStringArray(parsed.selectedTagFilters) ? parsed.selectedTagFilters : [],
     processSearch: typeof parsed.processSearch === "string" ? parsed.processSearch : "",
     statusFilter: typeof parsed.statusFilter === "string" ? parsed.statusFilter : "all",
     selectedProcessIds: isNumberArray(parsed.selectedProcessIds) ? parsed.selectedProcessIds : [],
-    activeLogProcessIds: isNumberArray(parsed.activeLogProcessIds) ? parsed.activeLogProcessIds : [],
+    activeDashboardProcessIds,
+    activeLogProcessIds,
     includePattern: typeof parsed.includePattern === "string" ? parsed.includePattern : "",
     excludePattern: typeof parsed.excludePattern === "string" ? parsed.excludePattern : "",
     initialLines:
@@ -69,7 +76,7 @@ export function readDashboardViewState(userId: string): DashboardViewState | nul
 
     const parsed = JSON.parse(raw) as RawDashboardViewState;
 
-    if (parsed.version !== 1 && parsed.version !== 2) {
+    if (parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3) {
       return null;
     }
 
@@ -97,6 +104,7 @@ interface RawDashboardViewState {
   processSearch?: unknown;
   statusFilter?: unknown;
   selectedProcessIds?: unknown;
+  activeDashboardProcessIds?: unknown;
   activeLogProcessIds?: unknown;
   includePattern?: unknown;
   excludePattern?: unknown;

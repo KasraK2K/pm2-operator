@@ -6,6 +6,18 @@ export function formatBytes(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+export function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
+}
+
+export function formatLoadAverage(loadAverage: number[]) {
+  if (loadAverage.length === 0) {
+    return "n/a";
+  }
+
+  return loadAverage.slice(0, 3).map((value) => value.toFixed(2)).join(" / ");
+}
+
 export function formatLastTested(timestamp: string | null) {
   if (!timestamp) {
     return "Not tested";
@@ -48,4 +60,3 @@ export function formatTimestamp(timestamp: string) {
     second: "2-digit"
   }).format(new Date(timestamp));
 }
-
