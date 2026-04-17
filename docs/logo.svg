@@ -1,0 +1,45 @@
+<svg width="760" height="180" viewBox="0 0 760 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pm2lv-gradient" x1="40" y1="44" x2="118" y2="118" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5AD0FF" />
+      <stop offset="0.58" stop-color="#EFC45B" />
+      <stop offset="1" stop-color="#42D88F" />
+    </linearGradient>
+    <radialGradient id="pm2lv-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(92 116) rotate(148) scale(58 46)">
+      <stop stop-color="#173246" />
+      <stop offset="1" stop-color="#08111C" />
+    </radialGradient>
+  </defs>
+
+  <rect width="760" height="180" rx="30" fill="#08111C" />
+  <rect x="26" y="26" width="128" height="128" rx="36" fill="#0D1725" stroke="#27415B" stroke-width="2.5" />
+  <rect x="40" y="40" width="100" height="100" rx="28" fill="url(#pm2lv-glow)" />
+
+  <rect x="46" y="50" width="88" height="66" rx="16" stroke="url(#pm2lv-gradient)" stroke-width="4" />
+  <circle cx="62" cy="65" r="5.2" fill="#76879B" />
+  <path d="M73 65H88" stroke="#76879B" stroke-width="4" stroke-linecap="round" />
+  <path d="M62 82H88" stroke="#A7B7CA" stroke-width="4" stroke-linecap="round" />
+  <path d="M62 96H80" stroke="#A7B7CA" stroke-width="4" stroke-linecap="round" />
+
+  <path
+    d="M50 128H62L72 112L82 134L96 104L106 118L124 108"
+    stroke="url(#pm2lv-gradient)"
+    stroke-width="6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path d="M50 128H124" stroke="#35526C" stroke-width="4" stroke-linecap="round" opacity="0.45" />
+
+  <text x="188" y="62" fill="#76879B" font-family="'IBM Plex Mono', 'Courier New', monospace" font-size="18" letter-spacing="4.8">
+    REMOTE PM2 OPERATIONS CONSOLE
+  </text>
+  <text x="188" y="108" fill="#5AD0FF" font-family="'Plus Jakarta Sans', 'Segoe UI', sans-serif" font-size="42" font-weight="700">
+    PM2
+  </text>
+  <text x="288" y="108" fill="#E9F2FB" font-family="'Plus Jakarta Sans', 'Segoe UI', sans-serif" font-size="42" font-weight="700">
+    Log Viewer
+  </text>
+  <text x="188" y="138" fill="#A7B7CA" font-family="'Plus Jakarta Sans', 'Segoe UI', sans-serif" font-size="18">
+    Secure SSH host storage, remote PM2 discovery, merged live logs, and operator-friendly monitoring UX.
+  </text>
+</svg>
