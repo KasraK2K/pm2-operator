@@ -1,4 +1,4 @@
-<svg width="760" height="180" viewBox="0 0 760 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="760" height="166" viewBox="0 0 760 166" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="pm2lv-gradient" x1="40" y1="44" x2="118" y2="118" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#5AD0FF" />
@@ -11,7 +11,7 @@
     </radialGradient>
   </defs>
 
-  <rect width="760" height="180" rx="30" fill="#08111C" />
+  <rect width="760" height="166" rx="30" fill="#08111C" />
   <rect x="26" y="26" width="128" height="128" rx="36" fill="#0D1725" stroke="#27415B" stroke-width="2.5" />
   <rect x="40" y="40" width="100" height="100" rx="28" fill="url(#pm2lv-glow)" />
 
@@ -38,8 +38,5 @@
   </text>
   <text x="288" y="108" fill="#E9F2FB" font-family="'Plus Jakarta Sans', 'Segoe UI', sans-serif" font-size="42" font-weight="700">
     Log Viewer
-  </text>
-  <text x="188" y="138" fill="#A7B7CA" font-family="'Plus Jakarta Sans', 'Segoe UI', sans-serif" font-size="18">
-    Secure SSH host storage, remote PM2 discovery, merged live logs, and operator-friendly monitoring UX.
   </text>
 </svg>
