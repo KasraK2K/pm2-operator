@@ -18,7 +18,7 @@ import {
   runPm2Action
 } from "./services/ssh.service";
 import { AppError } from "./utils/app-error";
-import { stripAnsiSequences } from "./utils/pm2";
+import { cleanLogLine, consumeBeginMarkerLine, shouldIgnoreLogLine } from "./utils/log-stream";
 import { RingBuffer } from "./utils/ring-buffer";
 
 const DASHBOARD_POLL_INTERVAL_MS = 3_000;
@@ -106,31 +106,6 @@ function getProcessLabel(target: LogTarget) {
 
 function getProcessKey(target: LogTarget) {
   return `${typeof target.processIdOrName}:${String(target.processIdOrName)}`;
-}
-
-function cleanLogLine(line: string) {
-  const displayLine = stripAnsiSequences(line).replace(/\r/g, "").replace(/\u0007/g, "");
-
-  return {
-    displayLine: displayLine.trimEnd(),
-    normalizedLine: displayLine.trim()
-  };
-}
-
-function shouldIgnoreLogLine(normalizedLine: string) {
-  if (!normalizedLine) {
-    return true;
-  }
-
-  if (normalizedLine.startsWith("[TAILING] Tailing last")) {
-    return true;
-  }
-
-  if (/\/\.pm2\/logs\/.+ last \d+ lines:$/.test(normalizedLine)) {
-    return true;
-  }
-
-  return /^[^\s@]+@[^:\s]+(?::.*)?[#>$]$/.test(normalizedLine);
 }
 
 function toAppError(error: unknown, fallbackCode: string, fallbackMessage: string) {
@@ -288,15 +263,24 @@ export function createSocketServer(server: HttpServer) {
           source: "stdout" | "stderr",
           item: (typeof openedStreams)[number]
         ) => {
-          const { displayLine, normalizedLine } = cleanLogLine(line);
-
           if (!item.ready) {
-            if (normalizedLine === item.handle.beginMarker) {
-              item.ready = true;
+            const beginMatch = consumeBeginMarkerLine(line, item.handle.beginMarker);
+
+            if (!beginMatch.matched) {
+              return;
             }
 
+            item.ready = true;
+
+            if (!beginMatch.remainderNormalized || shouldIgnoreLogLine(beginMatch.remainderNormalized)) {
+              return;
+            }
+
+            emitLine(beginMatch.remainderDisplay, source, item.target);
             return;
           }
+
+          const { displayLine, normalizedLine } = cleanLogLine(line);
 
           if (shouldIgnoreLogLine(normalizedLine)) {
             return;
