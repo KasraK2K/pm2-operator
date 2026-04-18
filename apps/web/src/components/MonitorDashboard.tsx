@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { CollapseToggleButton } from "./CollapseToggleButton";
+import { StatusPill } from "./StatusPill";
 import {
   formatBytes,
   formatHostOs,
@@ -53,22 +54,6 @@ interface MonitorDashboardProps {
   onOpenLogs: () => void;
   onRefresh: () => void;
   onTogglePanel: (panelId: string) => void;
-}
-
-function statusBadge(status: string) {
-  if (status === "online") {
-    return "border-transparent bg-[color:var(--success-soft)] text-[color:var(--success)]";
-  }
-
-  if (status === "stopped") {
-    return "border-transparent bg-[color:var(--warning-soft)] text-[color:var(--warning)]";
-  }
-
-  if (status === "errored") {
-    return "border-transparent bg-[color:var(--danger-soft)] text-[color:var(--danger)]";
-  }
-
-  return "border-[color:var(--border)] bg-[color:var(--surface-soft)] text-[color:var(--text-muted)]";
 }
 
 function buildTrendPath(values: number[], width: number, height: number) {
@@ -246,11 +231,7 @@ function HeatmapGrid({ processes }: { processes: Pm2DashboardProcessState[] }) {
                     <div className="truncate text-sm font-medium text-[color:var(--text)]">{process.name}</div>
                     <div className="mt-1 text-[11px] text-[color:var(--text-soft)]">PM2 ID {process.pmId}</div>
                   </div>
-                  <span
-                    className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-medium ${statusBadge(process.status)}`}
-                  >
-                    {process.status}
-                  </span>
+                  <StatusPill compact status={process.status} />
                 </div>
                 <div className="mt-3 grid gap-2 text-xs text-[color:var(--text-muted)] sm:grid-cols-2">
                   <div>
@@ -379,7 +360,6 @@ export function MonitorDashboard({
 
   const processes = snapshot?.processes ?? [];
   const aggregate = snapshot?.aggregate;
-  const selectedLabels = snapshot?.selection.targetLabels ?? activeTargets.map((process) => process.name);
   const cpuSamples = history.map((sample) => ({
     timestamp: sample.timestamp,
     value: sample.totalCpu
@@ -389,6 +369,15 @@ export function MonitorDashboard({
     value: sample.totalMemory
   }));
   const missingTargetPmIds = snapshot?.selection.missingTargetPmIds ?? [];
+  const headerTargets = activeTargets.map((target) => {
+    const liveProcess = processes.find((process) => process.pmId === target.pmId);
+
+    return {
+      pmId: target.pmId,
+      name: liveProcess?.selectedLabel ?? liveProcess?.name ?? target.name,
+      status: liveProcess?.status ?? target.status ?? "unknown"
+    };
+  });
 
   return (
     <section className="min-h-0 flex-1 space-y-3 overflow-auto pr-1" data-ui="monitor-dashboard">
@@ -449,11 +438,18 @@ export function MonitorDashboard({
 
         {!isPanelCollapsed("dashboard-header") ? (
           <>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {selectedLabels.map((label) => (
-            <span className="badge" key={`target-${label}`}>
-              {label}
-            </span>
+        <div className="mt-3 flex flex-wrap items-start gap-2">
+          {headerTargets.map((target) => (
+            <div
+              className="inline-flex max-w-full items-center gap-2 rounded-[0.9rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] px-2.5 py-1.5"
+              key={`target-${target.pmId}`}
+              title={`${target.name} (${target.status})`}
+            >
+              <span className="max-w-[18rem] truncate text-xs font-medium text-[color:var(--text)]">
+                {target.name}
+              </span>
+              <StatusPill compact status={target.status} />
+            </div>
           ))}
         </div>
 
@@ -757,17 +753,15 @@ export function MonitorDashboard({
                       ) : null}
                     </td>
                     <td className="px-4 py-3 align-top">
-                      <span
-                        className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-medium ${statusBadge(process.status)}`}
-                      >
-                        {process.status}
-                      </span>
-                      {process.unstableRestarts > 0 ? (
-                        <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-[color:var(--warning-soft)] px-2 py-1 text-[11px] text-[color:var(--warning)]">
-                          <AlertTriangle className="size-3.5" />
-                          {process.unstableRestarts} unstable
-                        </div>
-                      ) : null}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusPill status={process.status} />
+                        {process.unstableRestarts > 0 ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-transparent bg-[color:var(--warning-soft)] px-2 py-1 text-[11px] font-medium leading-none text-[color:var(--warning)]">
+                            <AlertTriangle className="size-3.5 shrink-0" />
+                            {process.unstableRestarts} unstable
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-4 py-3 align-top">{process.pid ?? "n/a"}</td>
                     <td className="px-4 py-3 align-top">{formatPercent(process.cpu)}</td>

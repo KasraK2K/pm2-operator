@@ -45,6 +45,7 @@ import { HostModal } from "./HostModal";
 import { LogPanel } from "./LogPanel";
 import { MonitorDashboard, type DashboardHistorySample } from "./MonitorDashboard";
 import { SettingsPanel } from "./SettingsPanel";
+import { StatusPill } from "./StatusPill";
 import { TagChip } from "./TagChip";
 import { ThemeMenu } from "./ThemeMenu";
 
@@ -61,22 +62,6 @@ type FlashTone = "success" | "error" | "info";
 
 const CLIENT_LOG_BUFFER_LIMIT = 2000;
 const DASHBOARD_HISTORY_LIMIT = 60;
-
-function statusBadge(status: string) {
-  if (status === "online") {
-    return "border-transparent bg-[color:var(--success-soft)] text-[color:var(--success)]";
-  }
-
-  if (status === "stopped") {
-    return "border-transparent bg-[color:var(--warning-soft)] text-[color:var(--warning)]";
-  }
-
-  if (status === "errored") {
-    return "border-transparent bg-[color:var(--danger-soft)] text-[color:var(--danger)]";
-  }
-
-  return "border-[color:var(--border)] bg-[color:var(--surface-soft)] text-[color:var(--text-muted)]";
-}
 
 function sortHosts(hosts: Host[]) {
   return [...hosts].sort((left, right) => left.name.localeCompare(right.name));
@@ -1854,11 +1839,7 @@ export function Dashboard({
                                 </div>
                               </td>
                               <td className="px-4 py-2.5">
-                                <span
-                                  className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-medium ${statusBadge(process.status)}`}
-                                >
-                                  {process.status}
-                                </span>
+                                <StatusPill status={process.status} />
                               </td>
                               <td className="px-4 py-2.5">{process.pid ?? "n/a"}</td>
                               <td className="px-4 py-2.5">{process.cpu.toFixed(1)}%</td>
