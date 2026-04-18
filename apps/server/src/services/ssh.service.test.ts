@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  extractOsSummary,
   extractPm2Version,
   isPm2Missing,
   parseShellTranscript,
@@ -49,6 +50,18 @@ describe("ssh.service", () => {
         fingerprint: "fingerprint"
       })
     ).toBe("6.0.8");
+  });
+
+  it("extracts a clean os summary from prompt-polluted uname output", () => {
+    expect(
+      extractOsSummary({
+        exitCode: 0,
+        stdout:
+          "root@Dev3:~# Linux Dev3 5.4.0-156-generic #173-Ubuntu SMP Tue Jul 11 07:25:22 UTC 2023 x86_64 x86_64 x86_64 GNU/Linux root@Dev3:~#",
+        stderr: "",
+        fingerprint: "fingerprint"
+      })
+    ).toBe("Linux Dev3 5.4.0-156-generic #173-Ubuntu SMP Tue Jul 11 07:25:22 UTC 2023 x86_64 x86_64 x86_64 GNU/Linux");
   });
 
   it("parses marker lines even when the shell echoes the printf commands", () => {

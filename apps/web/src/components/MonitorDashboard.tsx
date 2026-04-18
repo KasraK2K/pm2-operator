@@ -12,7 +12,14 @@ import {
   Zap
 } from "lucide-react";
 
-import { formatBytes, formatLoadAverage, formatPercent, formatTimestamp, formatUptime } from "../lib/format";
+import {
+  formatBytes,
+  formatHostOs,
+  formatLoadAverage,
+  formatPercent,
+  formatTimestamp,
+  formatUptime
+} from "../lib/format";
 import type {
   Host,
   LogLine,
@@ -279,7 +286,7 @@ function EmbeddedLogPanel({
   const visibleLines = lines.slice(-80);
 
   return (
-    <div className="panel-soft flex min-h-[16rem] flex-col overflow-hidden">
+    <div className="panel-soft flex min-h-[20rem] flex-col overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[color:var(--border)] px-3 py-2">
         <div>
           <div className="section-kicker">Embedded logs</div>
@@ -533,8 +540,11 @@ export function MonitorDashboard({
             </div>
             <div className="sm:col-span-2">
               <div className="text-xs text-[color:var(--text-soft)]">OS</div>
-              <div className="mt-1 text-sm font-medium text-[color:var(--text)]">
-                {snapshot?.host?.os ?? "n/a"}
+              <div
+                className="mt-1 text-sm font-medium text-[color:var(--text)]"
+                title={snapshot?.host?.os ?? ""}
+              >
+                {formatHostOs(snapshot?.host?.os ?? null)}
               </div>
             </div>
             <div>

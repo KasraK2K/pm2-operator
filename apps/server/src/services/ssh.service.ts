@@ -290,6 +290,38 @@ function buildCombinedOutput(result: CommandResult) {
   return [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
 }
 
+const OS_MARKER_PATTERN = /\b(Linux|Darwin|FreeBSD|OpenBSD|SunOS|AIX)\b/;
+
+function stripTrailingPrompt(value: string) {
+  return value.replace(/\s+[^\s@]+@[^\s:]+(?::[^\s]*)?[#>$]\s*$/g, "").trim();
+}
+
+export function extractOsSummary(result: CommandResult) {
+  const combined = stripAnsiSequences(buildCombinedOutput(result)).replace(/\r/g, "");
+  const lines = combined
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    const match = OS_MARKER_PATTERN.exec(line);
+
+    if (!match) {
+      continue;
+    }
+
+    const candidate = stripTrailingPrompt(line.slice(match.index));
+
+    if (candidate.startsWith("Linux ") && candidate.includes("GNU/Linux")) {
+      return candidate.slice(0, candidate.indexOf("GNU/Linux") + "GNU/Linux".length).trim();
+    }
+
+    return candidate;
+  }
+
+  return stripTrailingPrompt(combined.replace(/\s+/g, " ").trim());
+}
+
 function parsePrefixedValueLine(output: string, prefix: string) {
   const lines = stripAnsiSequences(output).replace(/\r/g, "").split("\n");
 
@@ -374,7 +406,7 @@ export async function testSshConnection(host: HostLike, options?: { repinFingerp
   ensurePm2Available(pm2, "pm2 -v");
 
   return {
-    os: uname.stdout.trim(),
+    os: extractOsSummary(uname),
     pm2Version: extractPm2Version(pm2),
     fingerprint: pm2.fingerprint
   };
@@ -421,7 +453,7 @@ export async function readHostRuntimeSummary(host: HostLike): Promise<HostRuntim
 
   const os =
     unameResult.status === "fulfilled"
-      ? unameResult.value.stdout.trim() || buildCombinedOutput(unameResult.value) || null
+      ? extractOsSummary(unameResult.value) || null
       : null;
 
   const pm2Version =
