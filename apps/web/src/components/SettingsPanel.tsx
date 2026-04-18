@@ -178,7 +178,7 @@ export function SettingsPanel({
   }
 
   return (
-    <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
+    <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden" data-ui="settings-panel">
       <div className="border-b border-[color:var(--border)] px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -188,7 +188,7 @@ export function SettingsPanel({
             </div>
           </div>
 
-          <div className="flex items-center gap-1 rounded-[0.9rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] p-1">
+          <div className="flex items-center gap-1 rounded-[0.9rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] p-1" data-ui="settings-tabs">
             <button
               className="button-tab"
               data-active={settingsTab === "profile"}
@@ -213,8 +213,8 @@ export function SettingsPanel({
 
       <div className="min-h-0 flex-1 overflow-auto px-4 py-4">
         {settingsTab === "profile" ? (
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
-            <div className="panel-soft p-4">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]" data-ui="profile-settings-section">
+            <div className="panel-soft p-4" data-ui="profile-card">
               <div className="flex items-center gap-2">
                 <UserCog className="size-4 text-[color:var(--accent)]" />
                 <div className="text-sm font-semibold text-[color:var(--text)]">Profile</div>
@@ -274,7 +274,7 @@ export function SettingsPanel({
             </div>
 
             <div className="space-y-4">
-              <div className="panel-soft p-4">
+              <div className="panel-soft p-4" data-ui="access-card">
                 <div className="flex items-center gap-2">
                   <Shield className="size-4 text-[color:var(--accent)]" />
                   <div className="text-sm font-semibold text-[color:var(--text)]">Access</div>
@@ -293,7 +293,7 @@ export function SettingsPanel({
                 </div>
               </div>
 
-              <div className="panel-soft p-4">
+              <div className="panel-soft p-4" data-ui="theme-settings-card">
                 <div className="text-sm font-semibold text-[color:var(--text)]">Theme</div>
                 <p className="mt-1 text-xs leading-5 text-[color:var(--text-muted)]">
                   Save a default dashboard theme for this account. Hover previews stay available in the header.
@@ -317,8 +317,8 @@ export function SettingsPanel({
             </div>
           </div>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
-            <div className="panel-soft p-4">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]" data-ui="user-management-section">
+            <div className="panel-soft p-4" data-ui="user-editor-card">
               <div className="flex items-center gap-2">
                 <Users className="size-4 text-[color:var(--accent)]" />
                 <div className="text-sm font-semibold text-[color:var(--text)]">
@@ -389,7 +389,7 @@ export function SettingsPanel({
               </div>
             </div>
 
-            <div className="panel-soft min-h-0 p-4">
+            <div className="panel-soft min-h-0 p-4" data-ui="workspace-users-card">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold text-[color:var(--text)]">Workspace users</div>
@@ -421,6 +421,8 @@ export function SettingsPanel({
                     return (
                       <div
                         className="panel flex items-center justify-between gap-3 px-3 py-3"
+                        data-ui="workspace-user-row"
+                        data-user-id={workspaceUser.id}
                         key={workspaceUser.id}
                       >
                         <div className="min-w-0">

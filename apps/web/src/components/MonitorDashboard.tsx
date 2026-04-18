@@ -286,7 +286,7 @@ function EmbeddedLogPanel({
   const visibleLines = lines.slice(-80);
 
   return (
-    <div className="panel-soft flex min-h-[20rem] flex-col overflow-hidden">
+    <div className="panel-soft flex min-h-[20rem] flex-col overflow-hidden" data-ui="embedded-log-panel">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[color:var(--border)] px-3 py-2">
         <div>
           <div className="section-kicker">Embedded logs</div>
@@ -381,8 +381,8 @@ export function MonitorDashboard({
   const missingTargetPmIds = snapshot?.selection.missingTargetPmIds ?? [];
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto">
-      <div className="panel px-4 py-3">
+    <section className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto" data-ui="monitor-dashboard">
+      <div className="panel px-4 py-3" data-ui="dashboard-header">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="section-kicker">Dashboard</div>
@@ -460,8 +460,8 @@ export function MonitorDashboard({
         ) : null}
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-5">
-        <div className="panel-soft p-3">
+      <div className="grid gap-3 xl:grid-cols-5" data-ui="dashboard-kpi-strip">
+        <div className="panel-soft p-3" data-ui="dashboard-kpi-total-cpu">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="section-kicker">Total CPU</div>
@@ -472,7 +472,7 @@ export function MonitorDashboard({
             <Cpu className="size-4 text-[color:var(--accent)]" />
           </div>
         </div>
-        <div className="panel-soft p-3">
+        <div className="panel-soft p-3" data-ui="dashboard-kpi-total-memory">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="section-kicker">Total memory</div>
@@ -483,7 +483,7 @@ export function MonitorDashboard({
             <HardDrive className="size-4 text-[color:var(--accent)]" />
           </div>
         </div>
-        <div className="panel-soft p-3">
+        <div className="panel-soft p-3" data-ui="dashboard-kpi-process-count">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="section-kicker">Processes</div>
@@ -494,7 +494,7 @@ export function MonitorDashboard({
             <Activity className="size-4 text-[color:var(--accent)]" />
           </div>
         </div>
-        <div className="panel-soft p-3">
+        <div className="panel-soft p-3" data-ui="dashboard-kpi-status">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="section-kicker">Online / errored</div>
@@ -505,7 +505,7 @@ export function MonitorDashboard({
             <Server className="size-4 text-[color:var(--accent)]" />
           </div>
         </div>
-        <div className="panel-soft p-3">
+        <div className="panel-soft p-3" data-ui="dashboard-kpi-restart-delta">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="section-kicker">Restart delta</div>
@@ -519,7 +519,7 @@ export function MonitorDashboard({
       </div>
 
       <div className="grid gap-3 xl:grid-cols-3">
-        <div className="panel-soft p-3 xl:col-span-1">
+        <div className="panel-soft p-3 xl:col-span-1" data-ui="dashboard-host-summary">
           <div className="section-kicker">Host summary</div>
           <div className="mt-1 text-sm text-[color:var(--text-muted)]">
             Live runtime context from the remote PM2 host
@@ -602,7 +602,7 @@ export function MonitorDashboard({
 
       <HeatmapGrid processes={processes} />
 
-      <div className="panel overflow-hidden">
+      <div className="panel overflow-hidden" data-ui="dashboard-process-details">
         <div className="border-b border-[color:var(--border)] px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -620,7 +620,7 @@ export function MonitorDashboard({
         </div>
 
         <div className="min-h-0 overflow-auto">
-          <table className="min-w-full table-fixed">
+          <table className="min-w-full table-fixed" data-ui="dashboard-process-table">
             <thead className="border-b border-[color:var(--border)] text-left text-[11px] uppercase tracking-[0.18em] text-[color:var(--text-soft)]">
               <tr>
                 <th className="px-4 py-3">Process</th>
@@ -645,6 +645,8 @@ export function MonitorDashboard({
                 processes.map((process) => (
                   <tr
                     className="border-b border-[color:var(--border)] text-sm text-[color:var(--text-muted)] hover:bg-[color:var(--surface-soft)]"
+                    data-process-id={process.pmId}
+                    data-ui="dashboard-process-row"
                     key={`dashboard-row-${process.pmId}`}
                   >
                     <td className="px-4 py-3 align-top">

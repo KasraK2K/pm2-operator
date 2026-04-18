@@ -1150,9 +1150,9 @@ export function Dashboard({
         tags={tags}
       />
 
-      <div className="h-screen overflow-hidden px-3 py-3 sm:px-4 sm:py-4">
+      <div className="h-screen overflow-hidden px-3 py-3 sm:px-4 sm:py-4" data-ui="workspace-dashboard">
         <div className="mx-auto flex h-full max-w-[1800px] flex-col gap-3">
-          <header className="panel flex flex-wrap items-center justify-between gap-3 px-3 py-2.5">
+          <header className="panel flex flex-wrap items-center justify-between gap-3 px-3 py-2.5" data-ui="app-header">
             <div className="flex items-center gap-3">
               <BrandLockup descriptor="Operations workspace" size="compact" />
               <span className="badge hidden sm:inline-flex">{hosts.length} hosts</span>
@@ -1213,13 +1213,13 @@ export function Dashboard({
           </header>
 
           {flash ? (
-            <div className="flash" data-tone={flash.tone}>
+            <div className="flash" data-tone={flash.tone} data-ui="workspace-flash">
               {flash.text}
             </div>
           ) : null}
 
           {workspaceError ? (
-            <div className="flash" data-tone="error">
+            <div className="flash" data-tone="error" data-ui="workspace-error">
               {workspaceError}
             </div>
           ) : null}
@@ -1247,6 +1247,7 @@ export function Dashboard({
               className={`panel flex min-h-0 shrink-0 flex-col overflow-hidden ${
                 sidebarCollapsed ? "lg:w-[5.25rem]" : "lg:w-[21rem]"
               }`}
+              data-ui="hosts-sidebar"
             >
               <div className="border-b border-[color:var(--border)] px-3 py-3">
                 <div className="flex items-center justify-between gap-2">
@@ -1292,6 +1293,7 @@ export function Dashboard({
                       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[color:var(--text-soft)]" />
                       <input
                         className="field pl-9"
+                        data-ui="host-search"
                         onChange={(event) => setHostSearch(event.target.value)}
                         placeholder="Search name, host, or user"
                         value={hostSearch}
@@ -1328,7 +1330,7 @@ export function Dashboard({
                 ) : null}
               </div>
 
-              <div className="min-h-0 flex-1 overflow-auto px-2 py-2">
+              <div className="min-h-0 flex-1 overflow-auto px-2 py-2" data-ui="hosts-list">
                 {workspaceBusy && hosts.length === 0 ? (
                   <div className="space-y-2 p-2">
                     {Array.from({ length: 5 }).map((_, index) => (
@@ -1355,6 +1357,8 @@ export function Dashboard({
                             ? "border-[color:var(--border-strong)] bg-[color:var(--accent-soft)] text-[color:var(--text)]"
                             : "border-transparent bg-transparent text-[color:var(--text-muted)] hover:bg-[color:var(--surface-soft)]"
                         }`}
+                        data-host-id={host.id}
+                        data-ui="host-card"
                         key={host.id}
                         onClick={() => handleHostSelection(host.id)}
                         title={host.name}
@@ -1373,6 +1377,8 @@ export function Dashboard({
                         <div
                           className="host-row group cursor-pointer"
                           data-active={host.id === selectedHostId}
+                          data-host-id={host.id}
+                          data-ui="host-card"
                           key={host.id}
                           onClick={() => handleHostSelection(host.id)}
                           onKeyDown={(event) => {
@@ -1568,8 +1574,8 @@ export function Dashboard({
                 </div>
               ) : null}
             </aside>
-            <main className="flex min-h-0 flex-1 flex-col gap-3">
-              <section className="panel px-4 py-3">
+            <main className="flex min-h-0 flex-1 flex-col gap-3" data-ui="workspace-main">
+              <section className="panel px-4 py-3" data-ui="active-host-strip">
                 {selectedHost ? (
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -1630,13 +1636,14 @@ export function Dashboard({
               </section>
 
               {activeTab === "processes" ? (
-                <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
+                <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden" data-ui="processes-section">
                   <div className="border-b border-[color:var(--border)] px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="relative min-w-[15rem] flex-1">
                         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[color:var(--text-soft)]" />
                         <input
                           className="field pl-9"
+                          data-ui="process-search"
                           onChange={(event) => setProcessSearch(event.target.value)}
                           placeholder="Search PM2 processes"
                           value={processSearch}
@@ -1645,6 +1652,7 @@ export function Dashboard({
 
                       <select
                         className="field w-auto min-w-[8.5rem]"
+                        data-ui="process-status-filter"
                         onChange={(event) => setStatusFilter(event.target.value)}
                         value={statusFilter}
                       >
@@ -1711,7 +1719,7 @@ export function Dashboard({
                   ) : null}
 
                   <div className="min-h-0 flex-1 overflow-auto">
-                    <table className="min-w-full table-fixed">
+                    <table className="min-w-full table-fixed" data-ui="process-table">
                       <thead className="border-b border-[color:var(--border)] text-left text-[11px] uppercase tracking-[0.18em] text-[color:var(--text-soft)]">
                         <tr>
                           <th className="w-11 px-4 py-3">
@@ -1752,6 +1760,8 @@ export function Dashboard({
                           filteredProcesses.map((process) => (
                             <tr
                               className="border-b border-[color:var(--border)] text-sm text-[color:var(--text-muted)] hover:bg-[color:var(--surface-soft)]"
+                              data-process-id={process.pmId}
+                              data-ui="process-row"
                               key={process.pmId}
                             >
                               <td className="px-4 py-2.5">

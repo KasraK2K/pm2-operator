@@ -22,9 +22,9 @@ export function AuthScreen({ mode, ownerExists, busy, error, onSubmit }: AuthScr
   const createOwner = mode === "bootstrap";
 
   return (
-    <div className="min-h-screen px-4 py-4">
+    <div className="min-h-screen px-4 py-4" data-ui="auth-screen">
       <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[1280px] gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <section className="panel hidden min-h-[34rem] flex-col justify-between p-6 lg:flex">
+        <section className="panel hidden min-h-[34rem] flex-col justify-between p-6 lg:flex" data-ui="auth-hero">
           <div className="space-y-6">
             <BrandLockup descriptor="Secure remote PM2 observability" size="hero" />
 
@@ -61,7 +61,7 @@ export function AuthScreen({ mode, ownerExists, busy, error, onSubmit }: AuthScr
           </div>
         </section>
 
-        <section className="panel flex min-h-[34rem] items-center justify-center px-5 py-6 sm:px-8">
+        <section className="panel flex min-h-[34rem] items-center justify-center px-5 py-6 sm:px-8" data-ui="auth-form-card">
           <div className="w-full max-w-md space-y-6">
             <div className="space-y-3">
               <div className="flex justify-center lg:hidden">
@@ -90,6 +90,7 @@ export function AuthScreen({ mode, ownerExists, busy, error, onSubmit }: AuthScr
 
             <form
               className="space-y-4"
+              data-ui="auth-form"
               onSubmit={async (event) => {
                 event.preventDefault();
                 await onSubmit(mode, email, password);

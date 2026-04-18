@@ -53,8 +53,8 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--surface-overlay)] px-4 py-6 backdrop-blur-md">
-      <div className="panel w-full max-w-3xl p-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--surface-overlay)] px-4 py-6 backdrop-blur-md" data-ui="host-modal-overlay">
+      <div className="panel w-full max-w-3xl p-5" data-ui="host-modal">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <div className="section-kicker">SSH host</div>
@@ -74,6 +74,7 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
 
         <form
           className="grid gap-4 md:grid-cols-2"
+          data-ui="host-form"
           onSubmit={async (event) => {
             event.preventDefault();
             await onSubmit(form, host?.id);

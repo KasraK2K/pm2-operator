@@ -67,7 +67,7 @@ export function LogPanel({
 
   if (!host || processes.length === 0) {
     return (
-      <section className="panel flex min-h-0 flex-1 items-center justify-center px-6 py-8 text-center">
+      <section className="panel flex min-h-0 flex-1 items-center justify-center px-6 py-8 text-center" data-ui="logs-empty-state">
         <div className="max-w-lg space-y-3">
           <div className="section-kicker">Live logs</div>
           <div className="text-lg font-semibold text-[color:var(--text)]">
@@ -85,7 +85,7 @@ export function LogPanel({
   const title = processes.length === 1 ? processes[0].name : `${processes.length} selected processes`;
 
   return (
-    <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
+    <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden" data-ui="logs-panel">
       <div className="border-b border-[color:var(--border)] px-4 py-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -181,6 +181,7 @@ export function LogPanel({
 
       <div
         className="terminal-shell font-mono-ui flex-1 overflow-auto px-3 py-3 text-[12px] leading-6 sm:text-[12.5px]"
+        data-ui="logs-viewport"
         ref={viewportRef}
       >
         {lines.length === 0 ? (
@@ -190,7 +191,7 @@ export function LogPanel({
         ) : (
           <div className="space-y-1">
             {lines.map((entry) => (
-              <div className="log-row" data-source={entry.source} key={entry.sequence}>
+              <div className="log-row" data-process-key={entry.processKey} data-source={entry.source} data-ui="log-line" key={entry.sequence}>
                 <div className="grid gap-1 text-[11px] text-[color:var(--terminal-muted)] md:grid-cols-[6rem_minmax(8rem,11rem)_1fr] md:gap-3">
                   <span>{formatTimestamp(entry.timestamp)}</span>
                   <span className="truncate">{entry.processLabel}</span>
