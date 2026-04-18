@@ -352,6 +352,33 @@
     box-shadow: 0 0 0 3px var(--accent-soft);
   }
 
+  .color-field {
+    @apply h-[2.65rem] w-full rounded-[0.9rem] border p-0 outline-none;
+    border-color: var(--border);
+    background: var(--surface-strong);
+    overflow: hidden;
+    appearance: none;
+  }
+
+  .color-field::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+
+  .color-field::-webkit-color-swatch {
+    border: none;
+    border-radius: 0.8rem;
+  }
+
+  .color-field::-moz-color-swatch {
+    border: none;
+    border-radius: 0.8rem;
+  }
+
+  .color-field:focus {
+    border-color: var(--border-strong);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
   .button-primary,
   .button-secondary,
   .button-ghost,

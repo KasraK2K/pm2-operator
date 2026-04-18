@@ -1,6 +1,7 @@
 import type { ThemeId } from "./themes";
 
 export type UserRole = "OWNER" | "ADMIN" | "MEMBER";
+export type PanelLayout = Record<string, boolean>;
 
 export interface User {
   id: string;
@@ -8,6 +9,7 @@ export interface User {
   role: UserRole;
   settings: {
     themeId: ThemeId;
+    panelLayout: PanelLayout;
   };
 }
 

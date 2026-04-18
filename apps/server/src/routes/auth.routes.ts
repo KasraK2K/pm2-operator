@@ -20,7 +20,7 @@ import {
   authenticatedUserSelect,
   loadAuthenticatedUserProfile,
   serializeAuthenticatedUser,
-  updateUserTheme
+  updateUserSettings
 } from "../services/user-preferences.service";
 import { asyncHandler } from "../utils/async-handler";
 import { AppError } from "../utils/app-error";
@@ -35,9 +35,20 @@ const credentialsSchema = z.object({
 
 const themeIdSchema = z.enum(THEME_IDS);
 
-const settingsSchema = z.object({
-  themeId: themeIdSchema
-});
+const settingsSchema = z
+  .object({
+    themeId: themeIdSchema.optional(),
+    panelLayout: z.record(z.string().min(1), z.boolean()).optional()
+  })
+  .superRefine((value, context) => {
+    if (value.themeId === undefined && value.panelLayout === undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["themeId"],
+        message: "Provide a theme or panel layout update."
+      });
+    }
+  });
 
 const profileSchema = z
   .object({
@@ -261,7 +272,10 @@ authRoutes.patch(
   requireAuth,
   asyncHandler(async (request, response) => {
     const body = settingsSchema.parse(request.body);
-    const user = await updateUserTheme(request.auth!.userId, body.themeId);
+    const user = await updateUserSettings(request.auth!.userId, {
+      themeId: body.themeId,
+      panelLayout: body.panelLayout
+    });
 
     await writeAuditLog({
       request,
@@ -270,7 +284,8 @@ authRoutes.patch(
       targetType: "user",
       targetId: request.auth!.userId,
       metadata: {
-        themeId: body.themeId
+        themeId: body.themeId ?? null,
+        panelLayout: body.panelLayout ?? null
       }
     });
 

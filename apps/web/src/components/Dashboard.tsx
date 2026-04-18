@@ -3,6 +3,7 @@ import {
   ChevronDown,
   Cog,
   LogOut,
+  MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   PencilLine,
@@ -39,6 +40,7 @@ import type {
   User
 } from "../lib/types";
 import { BrandLockup } from "./Brand";
+import { CollapseToggleButton } from "./CollapseToggleButton";
 import { HostModal } from "./HostModal";
 import { LogPanel } from "./LogPanel";
 import { MonitorDashboard, type DashboardHistorySample } from "./MonitorDashboard";
@@ -140,6 +142,7 @@ export function Dashboard({
   const [editingHost, setEditingHost] = useState<Host | null>(null);
   const [hostMutationBusy, setHostMutationBusy] = useState(false);
   const [hostActionBusyId, setHostActionBusyId] = useState<string | null>(null);
+  const [hostMenuOpenId, setHostMenuOpenId] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ tone: FlashTone; text: string } | null>(null);
   const [tagDraft, setTagDraft] = useState<{ id: string | null; name: string; color: string }>({
     id: null,
@@ -182,6 +185,7 @@ export function Dashboard({
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [usersBusy, setUsersBusy] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
+  const [panelLayout, setPanelLayout] = useState(user.settings.panelLayout ?? {});
 
   const socketRef = useRef<Socket | null>(null);
   const sessionTokenRef = useRef(accessToken);
@@ -215,6 +219,10 @@ export function Dashboard({
   }, [accessToken]);
 
   useEffect(() => {
+    setPanelLayout(user.settings.panelLayout ?? {});
+  }, [user.settings.panelLayout]);
+
+  useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
 
@@ -242,6 +250,13 @@ export function Dashboard({
     const timer = window.setTimeout(() => setFlash(null), 5000);
     return () => window.clearTimeout(timer);
   }, [flash]);
+
+  useEffect(() => {
+    const closeHostMenu = () => setHostMenuOpenId(null);
+
+    window.addEventListener("click", closeHostMenu);
+    return () => window.removeEventListener("click", closeHostMenu);
+  }, []);
 
   const selectedHost = hosts.find((host) => host.id === selectedHostId) ?? null;
 
@@ -1129,6 +1144,33 @@ export function Dashboard({
     setSelectedHostId(hostId);
     setActiveSection("monitor");
     setActiveTab("processes");
+    setHostMenuOpenId(null);
+  }
+
+  function isPanelCollapsed(panelId: string) {
+    return Boolean(panelLayout[panelId]);
+  }
+
+  function togglePanel(panelId: string) {
+    const previousLayout = panelLayout;
+    const nextLayout = {
+      ...previousLayout,
+      [panelId]: !previousLayout[panelId]
+    };
+
+    setPanelLayout(nextLayout);
+
+    void withSessionRetry((token) => api.updateSettings(token, { panelLayout: nextLayout }))
+      .then((response) => {
+        onSessionUpdate(response.user, sessionTokenRef.current);
+      })
+      .catch((error) => {
+        setPanelLayout(previousLayout);
+        setFlash({
+          tone: "error",
+          text: formatApiError(error, "Failed to save the panel layout.")
+        });
+      });
   }
 
   const allFilteredSelected =
@@ -1306,7 +1348,7 @@ export function Dashboard({
 
                         return (
                           <button
-                            className={`${active ? "button-secondary border-[color:var(--border-strong)] bg-[color:var(--surface-strong)]" : "button-ghost"} px-2 py-1 text-xs`}
+                            className={`${active ? "button-secondary border-[color:var(--border-strong)] bg-[color:var(--surface-strong)]" : "button-ghost"} inline-flex items-center gap-1.5 px-2 py-1 text-xs`}
                             key={tag.id}
                             onClick={() =>
                               setSelectedTagFilters((current) =>
@@ -1318,10 +1360,10 @@ export function Dashboard({
                             type="button"
                           >
                             <span
-                              className="size-2 rounded-full"
+                              className="size-2 shrink-0 rounded-full"
                               style={{ backgroundColor: tag.color ?? "#64748b" }}
                             />
-                            {tag.name}
+                            <span>{tag.name}</span>
                           </button>
                         );
                       })}
@@ -1431,43 +1473,68 @@ export function Dashboard({
                             </div>
 
                             {canManageWorkspace ? (
-                              <div className="flex shrink-0 items-start gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                              <div
+                                className="relative shrink-0 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                                onClick={(event) => event.stopPropagation()}
+                              >
                                 <button
                                   className="button-ghost h-8 w-8 p-0"
+                                  data-ui="host-card-menu-trigger"
                                   disabled={busy}
                                   onClick={(event) => {
                                     event.stopPropagation();
-                                    void handleHostTest(host);
+                                    setHostMenuOpenId((current) => (current === host.id ? null : host.id));
                                   }}
-                                  title="Test connection"
+                                  title="Host actions"
                                   type="button"
                                 >
-                                  <RefreshCw className="size-4" />
+                                  <MoreHorizontal className="size-4" />
                                 </button>
-                                <button
-                                  className="button-ghost h-8 w-8 p-0"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    setEditingHost(host);
-                                    setHostModalOpen(true);
-                                  }}
-                                  title="Edit host"
-                                  type="button"
-                                >
-                                  <PencilLine className="size-4" />
-                                </button>
-                                <button
-                                  className="button-ghost h-8 w-8 p-0"
-                                  disabled={busy}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    void handleHostDelete(host);
-                                  }}
-                                  title="Delete host"
-                                  type="button"
-                                >
-                                  <Trash2 className="size-4" />
-                                </button>
+
+                                {hostMenuOpenId === host.id ? (
+                                  <div
+                                    className="absolute right-0 top-9 z-20 min-w-[11rem] rounded-[0.95rem] border border-[color:var(--border-strong)] bg-[color:var(--bg-elevated)] p-1.5 shadow-[0_18px_38px_rgba(0,0,0,0.22)]"
+                                    data-ui="host-card-menu"
+                                    onClick={(event) => event.stopPropagation()}
+                                  >
+                                    <button
+                                      className="button-ghost w-full justify-start px-2.5 py-2 text-sm"
+                                      disabled={busy}
+                                      onClick={() => {
+                                        setHostMenuOpenId(null);
+                                        void handleHostTest(host);
+                                      }}
+                                      type="button"
+                                    >
+                                      <RefreshCw className="mr-2 size-4" />
+                                      Test connection
+                                    </button>
+                                    <button
+                                      className="button-ghost w-full justify-start px-2.5 py-2 text-sm"
+                                      onClick={() => {
+                                        setHostMenuOpenId(null);
+                                        setEditingHost(host);
+                                        setHostModalOpen(true);
+                                      }}
+                                      type="button"
+                                    >
+                                      <PencilLine className="mr-2 size-4" />
+                                      Edit host
+                                    </button>
+                                    <button
+                                      className="button-ghost w-full justify-start px-2.5 py-2 text-sm text-[color:var(--danger)]"
+                                      disabled={busy}
+                                      onClick={() => {
+                                        setHostMenuOpenId(null);
+                                        void handleHostDelete(host);
+                                      }}
+                                      type="button"
+                                    >
+                                      <Trash2 className="mr-2 size-4" />
+                                      Delete host
+                                    </button>
+                                  </div>
+                                ) : null}
                               </div>
                             ) : null}
                           </div>
@@ -1506,7 +1573,7 @@ export function Dashboard({
                           value={tagDraft.name}
                         />
                         <input
-                          className="h-[2.65rem] w-full rounded-[0.9rem] border border-[color:var(--border)] bg-[color:var(--surface-strong)] p-1.5"
+                          className="color-field"
                           onChange={(event) =>
                             setTagDraft((current) => ({ ...current, color: event.target.value }))
                           }
@@ -1576,69 +1643,93 @@ export function Dashboard({
             </aside>
             <main className="flex min-h-0 flex-1 flex-col gap-3" data-ui="workspace-main">
               <section className="panel px-4 py-3" data-ui="active-host-strip">
-                {selectedHost ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="section-kicker">Active host</div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <h2 className="truncate text-lg font-semibold text-[color:var(--text)]">
-                          {selectedHost.name}
-                        </h2>
-                        <span className="badge">
-                          {selectedHost.authType === "PASSWORD" ? "Password auth" : "Private key"}
-                        </span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--text-muted)]">
-                        <span>
-                          {selectedHost.username}@{selectedHost.host}:{selectedHost.port}
-                        </span>
-                        <span className="max-w-[28rem] truncate" title={selectedHost.hostFingerprint ?? ""}>
-                          Fingerprint {selectedHost.hostFingerprint ?? "not pinned"}
-                        </span>
-                      </div>
-                    </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="section-kicker">Active host</div>
+                  <CollapseToggleButton
+                    collapsed={isPanelCollapsed("active-host-strip")}
+                    onClick={() => togglePanel("active-host-strip")}
+                  />
+                </div>
 
-                    <div className="flex items-center gap-1 rounded-[0.95rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] p-1">
-                      <button
-                        className="button-tab"
-                        data-active={activeTab === "processes"}
-                        onClick={() => setActiveTab("processes")}
-                        type="button"
-                      >
-                        Processes
-                      </button>
-                      <button
-                        className="button-tab"
-                        data-active={activeTab === "dashboard"}
-                        disabled={activeLogProcesses.length === 0}
-                        onClick={() => setActiveTab("dashboard")}
-                        type="button"
-                      >
-                        Dashboard
-                      </button>
-                      <button
-                        className="button-tab"
-                        data-active={activeTab === "logs"}
-                        disabled={activeLogProcesses.length === 0}
-                        onClick={() => setActiveTab("logs")}
-                        type="button"
-                      >
-                        Logs
-                      </button>
+                {!isPanelCollapsed("active-host-strip") ? (
+                  selectedHost ? (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <h2 className="truncate text-lg font-semibold text-[color:var(--text)]">
+                            {selectedHost.name}
+                          </h2>
+                          <span className="badge">
+                            {selectedHost.authType === "PASSWORD" ? "Password auth" : "Private key"}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--text-muted)]">
+                          <span>
+                            {selectedHost.username}@{selectedHost.host}:{selectedHost.port}
+                          </span>
+                          <span className="max-w-[28rem] truncate" title={selectedHost.hostFingerprint ?? ""}>
+                            Fingerprint {selectedHost.hostFingerprint ?? "not pinned"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 rounded-[0.95rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] p-1">
+                        <button
+                          className="button-tab"
+                          data-active={activeTab === "processes"}
+                          onClick={() => setActiveTab("processes")}
+                          type="button"
+                        >
+                          Processes
+                        </button>
+                        <button
+                          className="button-tab"
+                          data-active={activeTab === "dashboard"}
+                          disabled={activeLogProcesses.length === 0}
+                          onClick={() => setActiveTab("dashboard")}
+                          type="button"
+                        >
+                          Dashboard
+                        </button>
+                        <button
+                          className="button-tab"
+                          data-active={activeTab === "logs"}
+                          disabled={activeLogProcesses.length === 0}
+                          onClick={() => setActiveTab("logs")}
+                          type="button"
+                        >
+                          Logs
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 text-sm text-[color:var(--text-muted)]">
-                    <Server className="size-4" />
-                    Select a host to inspect PM2 processes and stream logs.
-                  </div>
-                )}
+                  ) : (
+                    <div className="mt-3 flex items-center gap-3 text-sm text-[color:var(--text-muted)]">
+                      <Server className="size-4" />
+                      Select a host to inspect PM2 processes and stream logs.
+                    </div>
+                  )
+                ) : null}
               </section>
 
               {activeTab === "processes" ? (
                 <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden" data-ui="processes-section">
                   <div className="border-b border-[color:var(--border)] px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="section-kicker">Processes</div>
+                        <div className="mt-1 text-sm text-[color:var(--text-muted)]">
+                          Search, filter, and launch PM2 monitoring targets.
+                        </div>
+                      </div>
+                      <CollapseToggleButton
+                        collapsed={isPanelCollapsed("processes-section")}
+                        onClick={() => togglePanel("processes-section")}
+                      />
+                    </div>
+
+                    {!isPanelCollapsed("processes-section") ? (
+                    <>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       <div className="relative min-w-[15rem] flex-1">
                         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[color:var(--text-soft)]" />
                         <input
@@ -1708,9 +1799,11 @@ export function Dashboard({
                       <span className="badge">{selectedProcessIds.length} selected</span>
                       {processesBusy ? <span className="badge">Refreshing...</span> : null}
                     </div>
+                    </>
+                    ) : null}
                   </div>
 
-                  {processesError ? (
+                  {!isPanelCollapsed("processes-section") && processesError ? (
                     <div className="px-4 py-3">
                       <div className="flash" data-tone="error">
                         {processesError}
@@ -1718,6 +1811,7 @@ export function Dashboard({
                     </div>
                   ) : null}
 
+                  {!isPanelCollapsed("processes-section") ? (
                   <div className="min-h-0 flex-1 overflow-auto">
                     <table className="min-w-full table-fixed" data-ui="process-table">
                       <thead className="border-b border-[color:var(--border)] text-left text-[11px] uppercase tracking-[0.18em] text-[color:var(--text-soft)]">
@@ -1813,12 +1907,15 @@ export function Dashboard({
                       </tbody>
                     </table>
                   </div>
+                  ) : null}
 
+                  {!isPanelCollapsed("processes-section") ? (
                   <div className="flex flex-wrap items-center gap-2 border-t border-[color:var(--border)] px-4 py-2 text-xs text-[color:var(--text-muted)]">
                     <span>{selectedProcessIds.length} process{selectedProcessIds.length === 1 ? "" : "es"} selected</span>
                     <span className="badge">{selectedHost ? selectedHost.host : "No host selected"}</span>
                     <span className="badge">Status filter: {statusFilter}</span>
                   </div>
+                  ) : null}
                 </section>
               ) : activeTab === "dashboard" ? (
                 <MonitorDashboard
@@ -1829,17 +1926,20 @@ export function Dashboard({
                   dashboardStatus={dashboardStatus}
                   history={dashboardHistory}
                   host={selectedHost}
+                  isPanelCollapsed={isPanelCollapsed}
                   logError={logError}
                   logLines={visibleLogLines}
                   logStatus={logStatus}
                   onAction={handleDashboardAction}
                   onOpenLogs={() => setActiveTab("logs")}
                   onRefresh={restartDashboardSession}
+                  onTogglePanel={togglePanel}
                   snapshot={dashboardSnapshot}
                 />
               ) : (
                 <LogPanel
                   bufferedLineCount={rawLogBufferRef.current.length}
+                  collapsed={isPanelCollapsed("logs-panel")}
                   excludePattern={excludePattern}
                   filterError={filterError}
                   host={selectedHost}
@@ -1884,6 +1984,7 @@ export function Dashboard({
                   }}
                   onRestart={() => activeLogProcesses.length > 0 && startLogs(activeLogProcesses)}
                   onScrollLockToggle={() => setScrollLock((current) => !current)}
+                  onToggleCollapsed={() => togglePanel("logs-panel")}
                   paused={paused}
                   processes={activeLogProcesses}
                   scrollLock={scrollLock}

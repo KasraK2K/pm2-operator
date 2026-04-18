@@ -12,6 +12,7 @@ import {
   Zap
 } from "lucide-react";
 
+import { CollapseToggleButton } from "./CollapseToggleButton";
 import {
   formatBytes,
   formatHostOs,
@@ -47,9 +48,11 @@ interface MonitorDashboardProps {
   logLines: LogLine[];
   canManageActions: boolean;
   actionBusyLabel: string | null;
+  isPanelCollapsed: (panelId: string) => boolean;
   onAction: (action: Pm2DashboardAction, processIds: number[]) => void;
   onOpenLogs: () => void;
   onRefresh: () => void;
+  onTogglePanel: (panelId: string) => void;
 }
 
 function statusBadge(status: string) {
@@ -276,12 +279,14 @@ function EmbeddedLogPanel({
   lines,
   status,
   error,
-  onOpenLogs
+  onOpenLogs,
+  onToggleCollapsed
 }: {
   lines: LogLine[];
   status: string;
   error: string | null;
   onOpenLogs: () => void;
+  onToggleCollapsed: () => void;
 }) {
   const visibleLines = lines.slice(-80);
 
@@ -294,10 +299,13 @@ function EmbeddedLogPanel({
             {visibleLines.length} recent lines, stream {status}
           </div>
         </div>
-        <button className="button-secondary" onClick={onOpenLogs} type="button">
-          <TerminalSquare className="mr-2 size-4" />
-          Open full logs
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <CollapseToggleButton collapsed={false} onClick={onToggleCollapsed} />
+          <button className="button-secondary" onClick={onOpenLogs} type="button">
+            <TerminalSquare className="mr-2 size-4" />
+            Open full logs
+          </button>
+        </div>
       </div>
 
       {error ? (
@@ -346,9 +354,11 @@ export function MonitorDashboard({
   logLines,
   canManageActions,
   actionBusyLabel,
+  isPanelCollapsed,
   onAction,
   onOpenLogs,
-  onRefresh
+  onRefresh,
+  onTogglePanel
 }: MonitorDashboardProps) {
   if (!host || activeTargets.length === 0) {
     return (
@@ -381,7 +391,7 @@ export function MonitorDashboard({
   const missingTargetPmIds = snapshot?.selection.missingTargetPmIds ?? [];
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto" data-ui="monitor-dashboard">
+    <section className="min-h-0 flex-1 space-y-3 overflow-auto pr-1" data-ui="monitor-dashboard">
       <div className="panel px-4 py-3" data-ui="dashboard-header">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -404,6 +414,10 @@ export function MonitorDashboard({
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <CollapseToggleButton
+              collapsed={isPanelCollapsed("dashboard-header")}
+              onClick={() => onTogglePanel("dashboard-header")}
+            />
             <button className="button-secondary" onClick={onRefresh} type="button">
               <RefreshCw className="mr-2 size-4" />
               Refresh dashboard
@@ -433,6 +447,8 @@ export function MonitorDashboard({
           </div>
         </div>
 
+        {!isPanelCollapsed("dashboard-header") ? (
+          <>
         <div className="mt-3 flex flex-wrap gap-2">
           {selectedLabels.map((label) => (
             <span className="badge" key={`target-${label}`}>
@@ -458,9 +474,26 @@ export function MonitorDashboard({
             Some selected PM2 processes are no longer available on this host: {missingTargetPmIds.join(", ")}.
           </div>
         ) : null}
+          </>
+        ) : null}
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-5" data-ui="dashboard-kpi-strip">
+      <div className="panel p-3" data-ui="dashboard-kpi-strip">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="section-kicker">KPIs</div>
+            <div className="mt-1 text-sm text-[color:var(--text-muted)]">
+              Live aggregate health for the current PM2 target set.
+            </div>
+          </div>
+          <CollapseToggleButton
+            collapsed={isPanelCollapsed("dashboard-kpi-strip")}
+            onClick={() => onTogglePanel("dashboard-kpi-strip")}
+          />
+        </div>
+
+        {!isPanelCollapsed("dashboard-kpi-strip") ? (
+        <div className="mt-3 grid gap-3 xl:grid-cols-5">
         <div className="panel-soft p-3" data-ui="dashboard-kpi-total-cpu">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -517,8 +550,25 @@ export function MonitorDashboard({
           </div>
         </div>
       </div>
+        ) : null}
+      </div>
 
-      <div className="grid gap-3 xl:grid-cols-3">
+      <div className="panel p-3" data-ui="dashboard-runtime-section">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="section-kicker">Runtime summary</div>
+            <div className="mt-1 text-sm text-[color:var(--text-muted)]">
+              Host metadata with live aggregate CPU and memory history.
+            </div>
+          </div>
+          <CollapseToggleButton
+            collapsed={isPanelCollapsed("dashboard-runtime-section")}
+            onClick={() => onTogglePanel("dashboard-runtime-section")}
+          />
+        </div>
+
+        {!isPanelCollapsed("dashboard-runtime-section") ? (
+      <div className="mt-3 grid gap-3 xl:grid-cols-3">
         <div className="panel-soft p-3 xl:col-span-1" data-ui="dashboard-host-summary">
           <div className="section-kicker">Host summary</div>
           <div className="mt-1 text-sm text-[color:var(--text-muted)]">
@@ -582,8 +632,25 @@ export function MonitorDashboard({
           valueFormatter={formatBytes}
         />
       </div>
+        ) : null}
+      </div>
 
-      <div className="grid gap-3 xl:grid-cols-2">
+      <div className="panel p-3" data-ui="dashboard-comparison-section">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="section-kicker">Process comparisons</div>
+            <div className="mt-1 text-sm text-[color:var(--text-muted)]">
+              Compare current CPU and memory usage across selected PM2 services.
+            </div>
+          </div>
+          <CollapseToggleButton
+            collapsed={isPanelCollapsed("dashboard-comparison-section")}
+            onClick={() => onTogglePanel("dashboard-comparison-section")}
+          />
+        </div>
+
+        {!isPanelCollapsed("dashboard-comparison-section") ? (
+      <div className="mt-3 grid gap-3 xl:grid-cols-2">
         <CurrentBarChart
           accent="var(--accent)"
           formatter={formatPercent}
@@ -599,8 +666,29 @@ export function MonitorDashboard({
           title="Per-process memory"
         />
       </div>
+        ) : null}
+      </div>
 
-      <HeatmapGrid processes={processes} />
+      <div className="panel p-3" data-ui="dashboard-heatmap-section">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="section-kicker">Load heatmap</div>
+            <div className="mt-1 text-sm text-[color:var(--text-muted)]">
+              Relative CPU and memory intensity across the selected processes.
+            </div>
+          </div>
+          <CollapseToggleButton
+            collapsed={isPanelCollapsed("dashboard-heatmap-section")}
+            onClick={() => onTogglePanel("dashboard-heatmap-section")}
+          />
+        </div>
+
+        {!isPanelCollapsed("dashboard-heatmap-section") ? (
+          <div className="mt-3">
+            <HeatmapGrid processes={processes} />
+          </div>
+        ) : null}
+      </div>
 
       <div className="panel overflow-hidden" data-ui="dashboard-process-details">
         <div className="border-b border-[color:var(--border)] px-4 py-3">
@@ -616,10 +704,15 @@ export function MonitorDashboard({
                 {logError}
               </div>
             ) : null}
+            <CollapseToggleButton
+              collapsed={isPanelCollapsed("dashboard-process-details")}
+              onClick={() => onTogglePanel("dashboard-process-details")}
+            />
           </div>
         </div>
 
-        <div className="min-h-0 overflow-auto">
+        {!isPanelCollapsed("dashboard-process-details") ? (
+        <div className="overflow-x-auto">
           <table className="min-w-full table-fixed" data-ui="dashboard-process-table">
             <thead className="border-b border-[color:var(--border)] text-left text-[11px] uppercase tracking-[0.18em] text-[color:var(--text-soft)]">
               <tr>
@@ -726,9 +819,28 @@ export function MonitorDashboard({
             </tbody>
           </table>
         </div>
+        ) : null}
       </div>
 
-      <EmbeddedLogPanel error={logError} lines={logLines} onOpenLogs={onOpenLogs} status={logStatus} />
+      {!isPanelCollapsed("embedded-log-panel") ? (
+        <EmbeddedLogPanel
+          error={logError}
+          lines={logLines}
+          onOpenLogs={onOpenLogs}
+          onToggleCollapsed={() => onTogglePanel("embedded-log-panel")}
+          status={logStatus}
+        />
+      ) : (
+        <div className="panel px-4 py-3" data-ui="embedded-log-panel">
+          <div className="flex items-center justify-between gap-3">
+            <div className="section-kicker">Embedded logs</div>
+            <CollapseToggleButton
+              collapsed
+              onClick={() => onTogglePanel("embedded-log-panel")}
+            />
+          </div>
+        </div>
+      )}
     </section>
   );
 }

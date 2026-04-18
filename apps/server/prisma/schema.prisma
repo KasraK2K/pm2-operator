@@ -118,6 +118,7 @@ model RefreshToken {
 model UserPreference {
   userId    String   @id @map("user_id")
   themeId   String   @default("midnight-ops") @map("theme_id")
+  panelLayout Json?  @map("panel_layout")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

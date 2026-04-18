@@ -1,6 +1,7 @@
 import { Download, Pause, Play, RotateCcw, ScrollText } from "lucide-react";
 import { useEffect, useRef } from "react";
 
+import { CollapseToggleButton } from "./CollapseToggleButton";
 import { formatTimestamp } from "../lib/format";
 import type { Host, LogLine, Pm2Process } from "../lib/types";
 
@@ -17,6 +18,7 @@ interface LogPanelProps {
   streamError: string | null;
   initialLines: number;
   bufferedLineCount: number;
+  collapsed: boolean;
   onPauseToggle: () => void;
   onScrollLockToggle: () => void;
   onClear: () => void;
@@ -25,6 +27,7 @@ interface LogPanelProps {
   onExcludePatternChange: (value: string) => void;
   onInitialLinesChange: (value: number) => void;
   onRestart: () => void;
+  onToggleCollapsed: () => void;
 }
 
 export function LogPanel({
@@ -40,6 +43,7 @@ export function LogPanel({
   streamError,
   initialLines,
   bufferedLineCount,
+  collapsed,
   onPauseToggle,
   onScrollLockToggle,
   onClear,
@@ -47,7 +51,8 @@ export function LogPanel({
   onIncludePatternChange,
   onExcludePatternChange,
   onInitialLinesChange,
-  onRestart
+  onRestart,
+  onToggleCollapsed
 }: LogPanelProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
 
@@ -103,6 +108,7 @@ export function LogPanel({
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <CollapseToggleButton collapsed={collapsed} onClick={onToggleCollapsed} />
             <button className="button-secondary" onClick={onPauseToggle} type="button">
               {paused ? <Play className="mr-2 size-4" /> : <Pause className="mr-2 size-4" />}
               {paused ? "Resume" : "Pause"}
@@ -121,6 +127,7 @@ export function LogPanel({
           </div>
         </div>
 
+        {!collapsed ? (
         <div className="mt-3 grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem]">
           <label className="space-y-1 text-xs text-[color:var(--text-muted)]">
             <span>Include regex</span>
@@ -151,7 +158,9 @@ export function LogPanel({
             />
           </label>
         </div>
+        ) : null}
 
+        {!collapsed ? (
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
           <span className="badge">
             <ScrollText className="size-3.5" />
@@ -177,8 +186,10 @@ export function LogPanel({
             </span>
           ) : null}
         </div>
+        ) : null}
       </div>
 
+      {!collapsed ? (
       <div
         className="terminal-shell font-mono-ui flex-1 overflow-auto px-3 py-3 text-[12px] leading-6 sm:text-[12.5px]"
         data-ui="logs-viewport"
@@ -205,6 +216,7 @@ export function LogPanel({
           </div>
         )}
       </div>
+      ) : null}
     </section>
   );
 }

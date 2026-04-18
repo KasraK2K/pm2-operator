@@ -109,7 +109,8 @@ describe("auth.routes", () => {
         email: "owner@example.com",
         role: "OWNER",
         settings: {
-          themeId: "midnight-ops"
+          themeId: "midnight-ops",
+          panelLayout: {}
         }
       },
       accessToken: "access-token"
@@ -156,7 +157,8 @@ describe("auth.routes", () => {
       email: "owner@example.com",
       role: "OWNER",
       settings: {
-        themeId: "graphite"
+        themeId: "graphite",
+        panelLayout: {}
       }
     });
   });
@@ -182,7 +184,8 @@ describe("auth.routes", () => {
       email: "owner@example.com",
       role: "OWNER",
       settings: {
-        themeId: "ocean-depth"
+        themeId: "ocean-depth",
+        panelLayout: {}
       }
     });
   });
@@ -208,7 +211,8 @@ describe("auth.routes", () => {
       email: "owner@example.com",
       role: "OWNER",
       settings: {
-        themeId: "terminal-green"
+        themeId: "terminal-green",
+        panelLayout: {}
       }
     });
   });
@@ -216,7 +220,8 @@ describe("auth.routes", () => {
   it("updates the authenticated user's theme", async () => {
     prismaMock.userPreference.upsert.mockResolvedValueOnce({
       userId: "user-1",
-      themeId: "signal-neon"
+      themeId: "signal-neon",
+      panelLayout: {}
     });
     prismaMock.user.findUnique.mockResolvedValueOnce({
       id: "user-1",
@@ -234,6 +239,43 @@ describe("auth.routes", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.user.settings.themeId).toBe("signal-neon");
+    expect(response.body.user.settings.panelLayout).toEqual({});
+  });
+
+  it("updates the authenticated user's panel layout", async () => {
+    prismaMock.userPreference.upsert.mockResolvedValueOnce({
+      userId: "user-1",
+      themeId: "midnight-ops",
+      panelLayout: {
+        "dashboard-kpi-strip": true,
+        "embedded-log-panel": false
+      }
+    });
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: "user-1",
+      email: "owner@example.com",
+      role: "OWNER"
+    });
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/auth/settings")
+      .set("Authorization", "Bearer access-token")
+      .send({
+        panelLayout: {
+          "dashboard-kpi-strip": true,
+          "embedded-log-panel": false
+        }
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.user.settings).toEqual({
+      themeId: "midnight-ops",
+      panelLayout: {
+        "dashboard-kpi-strip": true,
+        "embedded-log-panel": false
+      }
+    });
   });
 
   it("updates the authenticated user's profile and returns a refreshed access token", async () => {
@@ -276,7 +318,8 @@ describe("auth.routes", () => {
         email: "lead@example.com",
         role: "OWNER",
         settings: {
-          themeId: "midnight-ops"
+          themeId: "midnight-ops",
+          panelLayout: {}
         }
       },
       accessToken: "updated-access-token"

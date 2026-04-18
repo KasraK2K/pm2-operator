@@ -6,6 +6,7 @@ import { AppError } from "../utils/app-error";
 
 export interface UserSettings {
   themeId: ThemeId;
+  panelLayout: Record<string, boolean>;
 }
 
 export interface AuthenticatedUserProfile {
@@ -26,7 +27,8 @@ export const authenticatedUserSelect = {
   role: true,
   preferences: {
     select: {
-      themeId: true
+      themeId: true,
+      panelLayout: true
     }
   }
 } satisfies Prisma.UserSelect;
@@ -39,7 +41,8 @@ export const managedUserSelect = {
   updatedAt: true,
   preferences: {
     select: {
-      themeId: true
+      themeId: true,
+      panelLayout: true
     }
   }
 } satisfies Prisma.UserSelect;
@@ -48,16 +51,29 @@ type SerializedUserInput = {
   id: string;
   email: string;
   role: UserRole;
-  preferences?: { themeId: string } | null;
+  preferences?: { themeId: string; panelLayout?: Prisma.JsonValue | null } | null;
 };
 
 function normalizeThemeId(themeId: string | null | undefined): ThemeId {
   return isThemeId(themeId) ? themeId : DEFAULT_THEME_ID;
 }
 
-function serializeUserSettings(preferences?: { themeId: string } | null): UserSettings {
+function normalizePanelLayout(panelLayout: Prisma.JsonValue | null | undefined) {
+  if (!panelLayout || typeof panelLayout !== "object" || Array.isArray(panelLayout)) {
+    return {} as Record<string, boolean>;
+  }
+
+  return Object.fromEntries(
+    Object.entries(panelLayout).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean")
+  );
+}
+
+function serializeUserSettings(
+  preferences?: { themeId: string; panelLayout?: Prisma.JsonValue | null } | null
+): UserSettings {
   return {
-    themeId: normalizeThemeId(preferences?.themeId)
+    themeId: normalizeThemeId(preferences?.themeId),
+    panelLayout: normalizePanelLayout(preferences?.panelLayout)
   };
 }
 
@@ -86,7 +102,8 @@ export async function ensureUserPreferences(userId: string) {
     update: {},
     create: {
       userId,
-      themeId: DEFAULT_THEME_ID
+      themeId: DEFAULT_THEME_ID,
+      panelLayout: {}
     }
   });
 
@@ -97,7 +114,8 @@ export async function ensureUserPreferences(userId: string) {
   return prisma.userPreference.update({
     where: { userId },
     data: {
-      themeId: DEFAULT_THEME_ID
+      themeId: DEFAULT_THEME_ID,
+      panelLayout: normalizePanelLayout(preferences.panelLayout)
     }
   });
 }
@@ -146,14 +164,21 @@ export async function loadManagedUsers(): Promise<ManagedUserProfile[]> {
   return usersWithPreferences.map(serializeManagedUser);
 }
 
-export async function updateUserTheme(userId: string, themeId: ThemeId): Promise<AuthenticatedUserProfile> {
+export async function updateUserSettings(
+  userId: string,
+  settings: { themeId?: ThemeId; panelLayout?: Record<string, boolean> }
+): Promise<AuthenticatedUserProfile> {
   const [preferences, user] = await Promise.all([
     prisma.userPreference.upsert({
       where: { userId },
-      update: { themeId },
+      update: {
+        themeId: settings.themeId,
+        panelLayout: settings.panelLayout
+      },
       create: {
         userId,
-        themeId
+        themeId: settings.themeId ?? DEFAULT_THEME_ID,
+        panelLayout: settings.panelLayout ?? {}
       }
     }),
     prisma.user.findUnique({

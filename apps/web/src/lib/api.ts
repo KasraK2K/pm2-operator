@@ -3,6 +3,7 @@ import type {
   Host,
   HostPayload,
   ManagedUser,
+  PanelLayout,
   Pm2Process,
   Tag,
   User,
@@ -98,7 +99,7 @@ export const api = {
       token
     });
   },
-  updateSettings(token: string, payload: { themeId: ThemeId }) {
+  updateSettings(token: string, payload: { themeId?: ThemeId; panelLayout?: PanelLayout }) {
     return request<{ user: User }>("/auth/settings", {
       method: "PATCH",
       token,
