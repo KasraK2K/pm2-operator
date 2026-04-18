@@ -456,6 +456,29 @@
     color: var(--text-muted);
   }
 
+  .tag-chip {
+    @apply inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-medium;
+    border-color: var(--border);
+    background: var(--surface-soft);
+    color: var(--text-muted);
+  }
+
+  .tag-chip[data-compact="true"] {
+    @apply px-1.5 py-0.5 text-[10px];
+  }
+
+  .tag-chip[data-active="true"] {
+    border-color: var(--border-strong);
+    background: var(--surface-strong);
+    color: var(--text);
+  }
+
+  .tag-chip[data-clickable="true"]:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-strong);
+    color: var(--text);
+  }
+
   .flash {
     @apply rounded-[0.85rem] border px-3 py-2 text-sm;
   }

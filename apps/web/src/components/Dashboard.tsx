@@ -45,6 +45,7 @@ import { HostModal } from "./HostModal";
 import { LogPanel } from "./LogPanel";
 import { MonitorDashboard, type DashboardHistorySample } from "./MonitorDashboard";
 import { SettingsPanel } from "./SettingsPanel";
+import { TagChip } from "./TagChip";
 import { ThemeMenu } from "./ThemeMenu";
 
 interface DashboardProps {
@@ -1347,8 +1348,9 @@ export function Dashboard({
                         const active = selectedTagFilters.includes(tag.id);
 
                         return (
-                          <button
-                            className={`${active ? "button-secondary border-[color:var(--border-strong)] bg-[color:var(--surface-strong)]" : "button-ghost"} inline-flex items-center gap-1.5 px-2 py-1 text-xs`}
+                          <TagChip
+                            active={active}
+                            clickable
                             key={tag.id}
                             onClick={() =>
                               setSelectedTagFilters((current) =>
@@ -1357,14 +1359,8 @@ export function Dashboard({
                                   : [...current, tag.id]
                               )
                             }
-                            type="button"
-                          >
-                            <span
-                              className="size-2 shrink-0 rounded-full"
-                              style={{ backgroundColor: tag.color ?? "#64748b" }}
-                            />
-                            <span>{tag.name}</span>
-                          </button>
+                            tag={tag}
+                          />
                         );
                       })}
                     </div>
@@ -1452,18 +1448,10 @@ export function Dashboard({
                               {host.tags.length > 0 ? (
                                 <div className="mt-2 flex flex-wrap gap-1">
                                   {host.tags.slice(0, 4).map((tag) => (
-                                    <span className="badge px-1.5 py-0.5 text-[10px]" key={tag.id}>
-                                      <span
-                                        className="size-1.5 rounded-full"
-                                        style={{ backgroundColor: tag.color ?? "#64748b" }}
-                                      />
-                                      {tag.name}
-                                    </span>
+                                    <TagChip compact key={tag.id} tag={tag} />
                                   ))}
                                   {host.tags.length > 4 ? (
-                                    <span className="badge px-1.5 py-0.5 text-[10px]">
-                                      +{host.tags.length - 4}
-                                    </span>
+                                    <TagChip compact label={`+${host.tags.length - 4}`} showDot={false} />
                                   ) : null}
                                 </div>
                               ) : null}
@@ -1548,7 +1536,7 @@ export function Dashboard({
               {!sidebarCollapsed && canManageWorkspace ? (
                 <div className="shrink-0 border-t border-[color:var(--border)] px-3 py-3">
                   <button
-                    className="button-ghost w-full justify-between px-0"
+                    className="button-ghost w-full justify-between px-2.5 py-2"
                     onClick={() => setTagManagerOpen((current) => !current)}
                     type="button"
                   >
@@ -1601,14 +1589,8 @@ export function Dashboard({
                               className="panel-soft flex items-center justify-between gap-3 px-3 py-2"
                               key={tag.id}
                             >
-                              <div className="flex min-w-0 items-center gap-2">
-                                <span
-                                  className="size-2.5 rounded-full"
-                                  style={{ backgroundColor: tag.color ?? "#64748b" }}
-                                />
-                                <span className="truncate text-sm text-[color:var(--text)]">
-                                  {tag.name}
-                                </span>
+                              <div className="min-w-0">
+                                <TagChip tag={tag} />
                               </div>
                               <div className="flex items-center gap-1">
                                 <button
