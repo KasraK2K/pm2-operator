@@ -113,6 +113,15 @@ export function LogPanel({
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <button
+              aria-pressed={scrollLock}
+              className={scrollLock ? "button-primary" : "button-secondary"}
+              onClick={onScrollLockToggle}
+              type="button"
+            >
+              <ScrollText className="mr-2 size-4" />
+              {scrollLock ? "Scroll locked" : "Lock scroll"}
+            </button>
             <button className="button-secondary" onClick={onPauseToggle} type="button">
               {paused ? <Play className="mr-2 size-4" /> : <Pause className="mr-2 size-4" />}
               {paused ? "Resume" : "Pause"}
@@ -172,9 +181,6 @@ export function LogPanel({
             {lines.length} visible
           </span>
           <span className="badge">{bufferedLineCount} buffered</span>
-          <button className="button-ghost px-2 py-1 text-xs" onClick={onScrollLockToggle} type="button">
-            {scrollLock ? "Unlock scroll" : "Lock scroll"}
-          </button>
           {processes.map((process) => (
             <span className="badge" key={process.pmId}>
               {process.name}
