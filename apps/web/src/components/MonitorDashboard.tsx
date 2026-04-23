@@ -189,7 +189,10 @@ export function MonitorDashboard({
 
   return (
     <section className="min-h-0 flex-1 space-y-3 overflow-auto pr-1" data-ui="monitor-dashboard">
-      <div className="flex flex-wrap items-center justify-between gap-2" data-ui="dashboard-toolbar">
+      <div
+        className="sticky top-0 z-20 -mr-1 flex flex-wrap items-center justify-between gap-2 border-b border-[color:var(--border)] bg-[color:var(--surface-overlay)] py-2 pr-1 backdrop-blur-md"
+        data-ui="dashboard-toolbar"
+      >
         <div className="flex min-w-0 items-center gap-2">
           <button
             aria-label="Back to processes"
