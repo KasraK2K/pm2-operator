@@ -8,4 +8,5 @@ coverage
 apps/web/dist
 apps/server/dist
 apps/server/generated
-
+.playwright-cli/
+output/

@@ -25,58 +25,58 @@ export const THEMES: ThemeDefinition[] = [
   {
     id: "midnight-ops",
     label: "Midnight Ops",
-    description: "Navy surfaces with calm cyan signal accents.",
+    description: "Quiet navy surfaces with balanced cyan signal contrast.",
     colorScheme: "dark",
-    preview: ["#08111c", "#13233a", "#5ad0ff"]
+    preview: ["#09111b", "#111d2b", "#6dbceb"]
   },
   {
     id: "graphite",
     label: "Graphite",
-    description: "Neutral charcoal for distraction-free triage.",
+    description: "Neutral charcoal tuned for long triage sessions.",
     colorScheme: "dark",
-    preview: ["#15181f", "#262b35", "#9ca7b8"]
+    preview: ["#13161d", "#20242c", "#b9c3d0"]
   },
   {
     id: "terminal-green",
     label: "Terminal Green",
-    description: "Classic phosphor terminal styling for deep log work.",
+    description: "Phosphor-inspired greens with softer night-shift contrast.",
     colorScheme: "dark",
-    preview: ["#061108", "#102316", "#52f08a"]
+    preview: ["#071009", "#102417", "#7ad99b"]
   },
   {
     id: "ocean-depth",
     label: "Ocean Depth",
-    description: "Deep blue with teal highlights and cooler contrast.",
+    description: "Cool blue depth with restrained teal operator accents.",
     colorScheme: "dark",
-    preview: ["#06141a", "#102833", "#4dd9c2"]
+    preview: ["#07131a", "#102733", "#68cec1"]
   },
   {
     id: "ember-watch",
     label: "Ember Watch",
-    description: "Warm coal base with orange alert-driven accents.",
+    description: "Warm low-glare amber tones for focused monitoring.",
     colorScheme: "dark",
-    preview: ["#160c08", "#2b1810", "#ff8a4c"]
+    preview: ["#170e0a", "#2b1a11", "#e59a61"]
   },
   {
     id: "arctic-light",
     label: "Arctic Light",
-    description: "High-clarity light mode for bright rooms and daytime ops.",
+    description: "Bright-room light mode with stronger readable contrast.",
     colorScheme: "light",
-    preview: ["#eef5fb", "#ffffff", "#2f7dd3"]
+    preview: ["#f3f7fa", "#f7fafd", "#2568b8"]
   },
   {
     id: "sandstone",
     label: "Sandstone",
-    description: "Warm neutral light mode with softer contrast edges.",
+    description: "Warm neutral light mode with steadier earthy contrast.",
     colorScheme: "light",
-    preview: ["#f5efe3", "#fffaf1", "#b37426"]
+    preview: ["#f6f0e6", "#f9f3ea", "#8c5e24"]
   },
   {
     id: "signal-neon",
     label: "Signal Neon",
-    description: "High-energy dark mode with vivid alert and action colors.",
+    description: "Reduced-neon dark mode with crisp signal highlights.",
     colorScheme: "dark",
-    preview: ["#071017", "#0f1d29", "#d0ff36"]
+    preview: ["#071018", "#101d2a", "#b8dc68"]
   }
 ];
 
