@@ -72,6 +72,20 @@ export function LogPanel({
     viewport.scrollTop = viewport.scrollHeight;
   }, [lines, paused, scrollLock]);
 
+  useEffect(() => {
+    const handleClearShortcut = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "k" || (!event.ctrlKey && !event.metaKey)) {
+        return;
+      }
+
+      event.preventDefault();
+      onClear();
+    };
+
+    window.addEventListener("keydown", handleClearShortcut);
+    return () => window.removeEventListener("keydown", handleClearShortcut);
+  }, [onClear]);
+
   if (!host || processes.length === 0) {
     return (
       <section className="panel flex min-h-0 flex-1 items-center justify-center px-6 py-8 text-center" data-ui="logs-empty-state">
@@ -126,7 +140,7 @@ export function LogPanel({
               {paused ? <Play className="mr-2 size-4" /> : <Pause className="mr-2 size-4" />}
               {paused ? "Resume" : "Pause"}
             </button>
-            <button className="button-secondary" onClick={onClear} type="button">
+            <button className="button-secondary" onClick={onClear} title="Clear logs (Ctrl/Cmd+K)" type="button">
               <RotateCcw className="mr-2 size-4" />
               Clear
             </button>
