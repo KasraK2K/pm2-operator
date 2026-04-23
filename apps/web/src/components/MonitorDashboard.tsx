@@ -71,11 +71,11 @@ function EmbeddedLogPanel({
           <div className="mt-1 text-xs text-[color:var(--text-soft)]">{visibleLines.length} / {status}</div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <CollapseToggleButton collapsed={false} onClick={onToggleCollapsed} />
           <button className="button-secondary" onClick={onOpenLogs} type="button">
             <TerminalSquare className="mr-2 size-4" />
             Open logs
           </button>
+          <CollapseToggleButton collapsed={false} onClick={onToggleCollapsed} />
         </div>
       </div>
 

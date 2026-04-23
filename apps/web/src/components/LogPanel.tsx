@@ -111,7 +111,6 @@ export function LogPanel({
             >
               <ArrowLeft className="size-4" />
             </button>
-            <CollapseToggleButton collapsed={collapsed} onClick={onToggleCollapsed} />
             <button className="button-secondary" onClick={onPauseToggle} type="button">
               {paused ? <Play className="mr-2 size-4" /> : <Pause className="mr-2 size-4" />}
               {paused ? "Resume" : "Pause"}
@@ -127,6 +126,7 @@ export function LogPanel({
             <button className="button-primary" onClick={onRestart} type="button">
               Restart stream
             </button>
+            <CollapseToggleButton collapsed={collapsed} onClick={onToggleCollapsed} />
           </div>
         </div>
 
