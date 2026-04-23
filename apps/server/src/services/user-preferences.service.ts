@@ -1,12 +1,14 @@
 import type { Prisma, UserRole } from "@prisma/client";
 
 import { DEFAULT_THEME_ID, isThemeId, type ThemeId } from "../config/themes";
+import { DEFAULT_SHORTCUTS, SHORTCUT_ACTIONS, type ShortcutMap } from "../config/shortcuts";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../utils/app-error";
 
 export interface UserSettings {
   themeId: ThemeId;
   panelLayout: Record<string, boolean>;
+  shortcuts: ShortcutMap;
 }
 
 export interface AuthenticatedUserProfile {
@@ -28,7 +30,8 @@ export const authenticatedUserSelect = {
   preferences: {
     select: {
       themeId: true,
-      panelLayout: true
+      panelLayout: true,
+      shortcuts: true
     }
   }
 } satisfies Prisma.UserSelect;
@@ -42,7 +45,8 @@ export const managedUserSelect = {
   preferences: {
     select: {
       themeId: true,
-      panelLayout: true
+      panelLayout: true,
+      shortcuts: true
     }
   }
 } satisfies Prisma.UserSelect;
@@ -51,7 +55,11 @@ type SerializedUserInput = {
   id: string;
   email: string;
   role: UserRole;
-  preferences?: { themeId: string; panelLayout?: Prisma.JsonValue | null } | null;
+  preferences?: {
+    themeId: string;
+    panelLayout?: Prisma.JsonValue | null;
+    shortcuts?: Prisma.JsonValue | null;
+  } | null;
 };
 
 function normalizeThemeId(themeId: string | null | undefined): ThemeId {
@@ -68,12 +76,30 @@ function normalizePanelLayout(panelLayout: Prisma.JsonValue | null | undefined) 
   );
 }
 
+function normalizeShortcuts(shortcuts: Prisma.JsonValue | null | undefined): ShortcutMap {
+  if (!shortcuts || typeof shortcuts !== "object" || Array.isArray(shortcuts)) {
+    return DEFAULT_SHORTCUTS;
+  }
+
+  return Object.fromEntries(
+    SHORTCUT_ACTIONS.map((action) => {
+      const value = (shortcuts as Record<string, unknown>)[action];
+      return [action, typeof value === "string" && value.trim() ? value.trim() : DEFAULT_SHORTCUTS[action]];
+    })
+  ) as ShortcutMap;
+}
+
 function serializeUserSettings(
-  preferences?: { themeId: string; panelLayout?: Prisma.JsonValue | null } | null
+  preferences?: {
+    themeId: string;
+    panelLayout?: Prisma.JsonValue | null;
+    shortcuts?: Prisma.JsonValue | null;
+  } | null
 ): UserSettings {
   return {
     themeId: normalizeThemeId(preferences?.themeId),
-    panelLayout: normalizePanelLayout(preferences?.panelLayout)
+    panelLayout: normalizePanelLayout(preferences?.panelLayout),
+    shortcuts: normalizeShortcuts(preferences?.shortcuts)
   };
 }
 
@@ -103,7 +129,8 @@ export async function ensureUserPreferences(userId: string) {
     create: {
       userId,
       themeId: DEFAULT_THEME_ID,
-      panelLayout: {}
+      panelLayout: {},
+      shortcuts: DEFAULT_SHORTCUTS
     }
   });
 
@@ -115,7 +142,8 @@ export async function ensureUserPreferences(userId: string) {
     where: { userId },
     data: {
       themeId: DEFAULT_THEME_ID,
-      panelLayout: normalizePanelLayout(preferences.panelLayout)
+      panelLayout: normalizePanelLayout(preferences.panelLayout),
+      shortcuts: normalizeShortcuts(preferences.shortcuts)
     }
   });
 }
@@ -166,19 +194,21 @@ export async function loadManagedUsers(): Promise<ManagedUserProfile[]> {
 
 export async function updateUserSettings(
   userId: string,
-  settings: { themeId?: ThemeId; panelLayout?: Record<string, boolean> }
+  settings: { themeId?: ThemeId; panelLayout?: Record<string, boolean>; shortcuts?: ShortcutMap }
 ): Promise<AuthenticatedUserProfile> {
   const [preferences, user] = await Promise.all([
     prisma.userPreference.upsert({
       where: { userId },
       update: {
         themeId: settings.themeId,
-        panelLayout: settings.panelLayout
+        panelLayout: settings.panelLayout,
+        shortcuts: settings.shortcuts
       },
       create: {
         userId,
         themeId: settings.themeId ?? DEFAULT_THEME_ID,
-        panelLayout: settings.panelLayout ?? {}
+        panelLayout: settings.panelLayout ?? {},
+        shortcuts: settings.shortcuts ?? DEFAULT_SHORTCUTS
       }
     }),
     prisma.user.findUnique({

@@ -10,6 +10,7 @@ import type {
   UserRole
 } from "./types";
 import type { ThemeId } from "./themes";
+import type { ShortcutMap } from "./shortcuts";
 
 export class ApiError extends Error {
   public readonly status: number;
@@ -99,7 +100,10 @@ export const api = {
       token
     });
   },
-  updateSettings(token: string, payload: { themeId?: ThemeId; panelLayout?: PanelLayout }) {
+  updateSettings(
+    token: string,
+    payload: { themeId?: ThemeId; panelLayout?: PanelLayout; shortcuts?: ShortcutMap }
+  ) {
     return request<{ user: User }>("/auth/settings", {
       method: "PATCH",
       token,

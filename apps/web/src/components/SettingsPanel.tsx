@@ -1,9 +1,18 @@
-import { Shield, UserCog, Users } from "lucide-react";
+import { Keyboard, RotateCcw, Shield, UserCog, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { THEMES } from "../lib/themes";
 import type { ManagedUser, User, UserRole } from "../lib/types";
 import type { SettingsTab } from "../lib/dashboard-view-state";
+import {
+  DEFAULT_SHORTCUTS,
+  SHORTCUT_ACTIONS,
+  formatShortcut,
+  normalizeShortcuts,
+  shortcutFromEvent,
+  type ShortcutAction,
+  type ShortcutMap
+} from "../lib/shortcuts";
 
 interface SettingsPanelProps {
   currentUser: User;
@@ -20,6 +29,7 @@ interface SettingsPanelProps {
     newPassword?: string;
   }) => Promise<void>;
   onThemeSelect: (themeId: User["settings"]["themeId"]) => Promise<void>;
+  onShortcutsSave: (shortcuts: ShortcutMap) => Promise<void>;
   onRefreshUsers: () => Promise<void>;
   onCreateUser: (payload: { email: string; password: string; role: UserRole }) => Promise<void>;
   onUpdateUser: (
@@ -62,6 +72,7 @@ export function SettingsPanel({
   onSettingsTabChange,
   onProfileSave,
   onThemeSelect,
+  onShortcutsSave,
   onRefreshUsers,
   onCreateUser,
   onUpdateUser,
@@ -82,10 +93,49 @@ export function SettingsPanel({
   const [userRole, setUserRole] = useState<UserRole>("MEMBER");
   const [userBusy, setUserBusy] = useState(false);
   const [userMessage, setUserMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [shortcutDraft, setShortcutDraft] = useState<ShortcutMap>(() =>
+    normalizeShortcuts(currentUser.settings.shortcuts)
+  );
+  const [recordingAction, setRecordingAction] = useState<ShortcutAction | null>(null);
+  const [shortcutBusy, setShortcutBusy] = useState(false);
+  const [shortcutMessage, setShortcutMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     setProfileEmail(currentUser.email);
   }, [currentUser.email]);
+
+  useEffect(() => {
+    if (!recordingAction) {
+      setShortcutDraft(normalizeShortcuts(currentUser.settings.shortcuts));
+    }
+  }, [currentUser.settings.shortcuts, recordingAction]);
+
+  useEffect(() => {
+    if (!recordingAction) {
+      return;
+    }
+
+    const handleShortcutCapture = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      const nextShortcut = shortcutFromEvent(event);
+
+      if (!nextShortcut) {
+        return;
+      }
+
+      setShortcutDraft((current) => ({
+        ...current,
+        [recordingAction]: nextShortcut
+      }));
+      setRecordingAction(null);
+    };
+
+    window.addEventListener("keydown", handleShortcutCapture, true);
+    return () => window.removeEventListener("keydown", handleShortcutCapture, true);
+  }, [recordingAction]);
 
   useEffect(() => {
     if (!canManageUsers || settingsTab !== "users") {
@@ -177,6 +227,53 @@ export function SettingsPanel({
     }
   }
 
+  function getShortcutConflict() {
+    const seen = new Map<string, string>();
+
+    for (const action of SHORTCUT_ACTIONS) {
+      const value = shortcutDraft[action.id].toLowerCase();
+      const previous = seen.get(value);
+
+      if (previous) {
+        return `${previous} / ${action.label}`;
+      }
+
+      seen.set(value, action.label);
+    }
+
+    return null;
+  }
+
+  async function handleShortcutSubmit() {
+    const conflict = getShortcutConflict();
+
+    if (conflict) {
+      setShortcutMessage({
+        tone: "error",
+        text: `Shortcut conflict: ${conflict}`
+      });
+      return;
+    }
+
+    setShortcutBusy(true);
+    setShortcutMessage(null);
+
+    try {
+      await onShortcutsSave(shortcutDraft);
+      setShortcutMessage({
+        tone: "success",
+        text: "Shortcuts saved."
+      });
+    } catch (error) {
+      setShortcutMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Failed to save shortcuts."
+      });
+    } finally {
+      setShortcutBusy(false);
+    }
+  }
+
   return (
     <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden" data-ui="settings-panel">
       <div className="border-b border-[color:var(--border)] px-4 py-3">
@@ -193,6 +290,14 @@ export function SettingsPanel({
               type="button"
             >
               Profile
+            </button>
+            <button
+              className="button-tab"
+              data-active={settingsTab === "shortcuts"}
+              onClick={() => onSettingsTabChange("shortcuts")}
+              type="button"
+            >
+              Shortcuts
             </button>
             {canManageUsers ? (
               <button
@@ -300,6 +405,71 @@ export function SettingsPanel({
                     ))}
                   </select>
                 </label>
+              </div>
+            </div>
+          </div>
+        ) : settingsTab === "shortcuts" ? (
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)]" data-ui="shortcut-settings-section">
+            <div className="panel-soft p-4" data-ui="shortcut-editor-card">
+              <div className="flex items-center gap-2">
+                <Keyboard className="size-4 text-[color:var(--accent)]" />
+                <div className="text-sm font-semibold text-[color:var(--text)]">Shortcuts</div>
+              </div>
+
+              <div className="mt-3 divide-y divide-[color:var(--border)]">
+                {SHORTCUT_ACTIONS.map((action) => (
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-3" key={action.id}>
+                    <div className="text-sm font-medium text-[color:var(--text)]">{action.label}</div>
+                    <button
+                      className={recordingAction === action.id ? "button-primary" : "button-secondary"}
+                      data-shortcut-recorder="true"
+                      onClick={() => setRecordingAction(action.id)}
+                      type="button"
+                    >
+                      {recordingAction === action.id ? "Press keys" : formatShortcut(shortcutDraft[action.id])}
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {shortcutMessage ? (
+                <div className="flash mt-3" data-tone={shortcutMessage.tone}>
+                  {shortcutMessage.text}
+                </div>
+              ) : null}
+
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <button
+                  className="button-secondary"
+                  onClick={() => {
+                    setShortcutDraft(DEFAULT_SHORTCUTS);
+                    setShortcutMessage(null);
+                  }}
+                  type="button"
+                >
+                  <RotateCcw className="mr-2 size-4" />
+                  Defaults
+                </button>
+                <button
+                  className="button-primary"
+                  disabled={shortcutBusy}
+                  onClick={() => void handleShortcutSubmit()}
+                  type="button"
+                >
+                  {shortcutBusy ? "Saving..." : "Save shortcuts"}
+                </button>
+              </div>
+            </div>
+
+            <div className="panel-soft p-4" data-ui="shortcut-current-card">
+              <div className="text-sm font-semibold text-[color:var(--text)]">Current</div>
+              <div className="mt-3 grid gap-2">
+                {SHORTCUT_ACTIONS.map((action) => (
+                  <div className="flex items-center justify-between gap-3 text-sm" key={`current-${action.id}`}>
+                    <span className="text-[color:var(--text-muted)]">{action.label}</span>
+                    <span className="badge">{formatShortcut(shortcutDraft[action.id])}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

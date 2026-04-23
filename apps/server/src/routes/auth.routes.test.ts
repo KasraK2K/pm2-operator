@@ -50,6 +50,13 @@ vi.mock("../services/auth.service", () => authServiceMock);
 
 import { createApp } from "../app";
 
+const defaultShortcuts = {
+  processes: "Alt+P",
+  dashboard: "Alt+D",
+  logs: "Alt+L",
+  clearLogs: "Mod+K"
+};
+
 describe("auth.routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -110,7 +117,8 @@ describe("auth.routes", () => {
         role: "OWNER",
         settings: {
           themeId: "midnight-ops",
-          panelLayout: {}
+          panelLayout: {},
+          shortcuts: defaultShortcuts
         }
       },
       accessToken: "access-token"
@@ -158,7 +166,8 @@ describe("auth.routes", () => {
       role: "OWNER",
       settings: {
         themeId: "graphite",
-        panelLayout: {}
+        panelLayout: {},
+        shortcuts: defaultShortcuts
       }
     });
   });
@@ -185,7 +194,8 @@ describe("auth.routes", () => {
       role: "OWNER",
       settings: {
         themeId: "ocean-depth",
-        panelLayout: {}
+        panelLayout: {},
+        shortcuts: defaultShortcuts
       }
     });
   });
@@ -212,7 +222,8 @@ describe("auth.routes", () => {
       role: "OWNER",
       settings: {
         themeId: "terminal-green",
-        panelLayout: {}
+        panelLayout: {},
+        shortcuts: defaultShortcuts
       }
     });
   });
@@ -240,6 +251,41 @@ describe("auth.routes", () => {
     expect(response.status).toBe(200);
     expect(response.body.user.settings.themeId).toBe("signal-neon");
     expect(response.body.user.settings.panelLayout).toEqual({});
+    expect(response.body.user.settings.shortcuts).toEqual(defaultShortcuts);
+  });
+
+  it("updates the authenticated user's shortcuts", async () => {
+    const shortcuts = {
+      processes: "Alt+1",
+      dashboard: "Alt+2",
+      logs: "Alt+3",
+      clearLogs: "Mod+Shift+K"
+    };
+
+    prismaMock.userPreference.upsert.mockResolvedValueOnce({
+      userId: "user-1",
+      themeId: "midnight-ops",
+      panelLayout: {},
+      shortcuts
+    });
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: "user-1",
+      email: "owner@example.com",
+      role: "OWNER"
+    });
+
+    const app = createApp();
+    const response = await request(app)
+      .patch("/auth/settings")
+      .set("Authorization", "Bearer access-token")
+      .send({ shortcuts });
+
+    expect(response.status).toBe(200);
+    expect(response.body.user.settings).toEqual({
+      themeId: "midnight-ops",
+      panelLayout: {},
+      shortcuts
+    });
   });
 
   it("updates the authenticated user's panel layout", async () => {
@@ -274,7 +320,8 @@ describe("auth.routes", () => {
       panelLayout: {
         "dashboard-kpi-strip": true,
         "embedded-log-panel": false
-      }
+      },
+      shortcuts: defaultShortcuts
     });
   });
 
@@ -319,7 +366,8 @@ describe("auth.routes", () => {
         role: "OWNER",
         settings: {
           themeId: "midnight-ops",
-          panelLayout: {}
+          panelLayout: {},
+          shortcuts: defaultShortcuts
         }
       },
       accessToken: "updated-access-token"

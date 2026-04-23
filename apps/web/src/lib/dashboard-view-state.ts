@@ -1,6 +1,6 @@
 export type DashboardSection = "monitor" | "settings";
 export type DashboardTab = "processes" | "dashboard" | "logs";
-export type SettingsTab = "profile" | "users";
+export type SettingsTab = "profile" | "shortcuts" | "users";
 
 export interface DashboardViewState {
   version: 3;
@@ -47,7 +47,10 @@ function normalizeState(parsed: RawDashboardViewState): DashboardViewState {
     activeSection: parsed.activeSection === "settings" ? "settings" : "monitor",
     selectedHostId: typeof parsed.selectedHostId === "string" ? parsed.selectedHostId : null,
     activeTab: parsed.activeTab === "logs" || parsed.activeTab === "dashboard" ? parsed.activeTab : "processes",
-    settingsTab: parsed.settingsTab === "users" ? "users" : "profile",
+    settingsTab:
+      parsed.settingsTab === "users" || parsed.settingsTab === "shortcuts"
+        ? parsed.settingsTab
+        : "profile",
     hostSearch: typeof parsed.hostSearch === "string" ? parsed.hostSearch : "",
     selectedTagFilters: isStringArray(parsed.selectedTagFilters) ? parsed.selectedTagFilters : [],
     processSearch: typeof parsed.processSearch === "string" ? parsed.processSearch : "",

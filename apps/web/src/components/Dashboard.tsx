@@ -15,7 +15,7 @@ import {
   Trash2
 } from "lucide-react";
 import { io, type Socket } from "socket.io-client";
-import { startTransition, useDeferredValue, useEffect, useRef, useState } from "react";
+import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import { api, ApiError } from "../lib/api";
 import {
@@ -26,6 +26,13 @@ import {
   type SettingsTab
 } from "../lib/dashboard-view-state";
 import { formatBytes, formatLastTested, formatUptime } from "../lib/format";
+import {
+  eventMatchesShortcut,
+  formatShortcut,
+  normalizeShortcuts,
+  type ShortcutAction,
+  type ShortcutMap
+} from "../lib/shortcuts";
 import { THEME_LOOKUP, type ThemeId } from "../lib/themes";
 import type {
   Host,
@@ -169,6 +176,7 @@ export function Dashboard({
   const [usersBusy, setUsersBusy] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [panelLayout, setPanelLayout] = useState(user.settings.panelLayout ?? {});
+  const shortcuts = useMemo(() => normalizeShortcuts(user.settings.shortcuts), [user.settings.shortcuts]);
 
   const socketRef = useRef<Socket | null>(null);
   const sessionTokenRef = useRef(accessToken);
@@ -864,6 +872,15 @@ export function Dashboard({
     }
   }
 
+  async function handleShortcutsSave(nextShortcuts: ShortcutMap) {
+    const response = await withSessionRetry((token) => api.updateSettings(token, { shortcuts: nextShortcuts }));
+    onSessionUpdate(response.user, sessionTokenRef.current);
+    setFlash({
+      tone: "success",
+      text: "Shortcuts updated."
+    });
+  }
+
   async function loadUsers() {
     if (!canManageUsers) {
       setUsers([]);
@@ -1148,7 +1165,56 @@ export function Dashboard({
   const allFilteredSelected =
     filteredProcesses.length > 0 &&
     filteredProcesses.every((process) => selectedProcessIds.includes(process.pmId));
-  const selectedProcesses = processes.filter((process) => selectedProcessIds.includes(process.pmId));
+  const selectedProcesses = useMemo(
+    () => processes.filter((process) => selectedProcessIds.includes(process.pmId)),
+    [processes, selectedProcessIds]
+  );
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      const action = (Object.entries(shortcuts) as Array<[ShortcutAction, string]>).find(([, shortcut]) =>
+        eventMatchesShortcut(event, shortcut)
+      )?.[0];
+
+      if (!action) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (action === "processes") {
+        setActiveSection("monitor");
+        setActiveTab("processes");
+        return;
+      }
+
+      if (action === "clearLogs") {
+        clearLogs();
+        return;
+      }
+
+      if (action === "dashboard") {
+        if (selectedProcesses.length > 0) {
+          startDashboard(selectedProcesses);
+        } else if (activeLogProcessesRef.current.length > 0) {
+          setActiveSection("monitor");
+          setActiveTab("dashboard");
+        }
+
+        return;
+      }
+
+      if (selectedProcesses.length > 0) {
+        startLogs(selectedProcesses);
+      } else if (activeLogProcessesRef.current.length > 0) {
+        setActiveSection("monitor");
+        setActiveTab("logs");
+      }
+    };
+
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, [shortcuts, selectedProcesses]);
 
   return (
     <>
@@ -1247,6 +1313,7 @@ export function Dashboard({
               onProfileSave={handleProfileSave}
               onRefreshUsers={loadUsers}
               onSettingsTabChange={setSettingsTab}
+              onShortcutsSave={handleShortcutsSave}
               onThemeSelect={handleThemeSelect}
               onUpdateUser={handleUserUpdate}
               settingsTab={settingsTab}
@@ -1815,6 +1882,7 @@ export function Dashboard({
               ) : (
                 <LogPanel
                   bufferedLineCount={rawLogBufferRef.current.length}
+                  clearShortcut={formatShortcut(shortcuts.clearLogs)}
                   collapsed={isPanelCollapsed("logs-panel")}
                   excludePattern={excludePattern}
                   filterError={filterError}

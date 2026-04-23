@@ -1,4 +1,5 @@
 import type { ThemeId } from "./themes";
+import type { ShortcutMap } from "./shortcuts";
 
 export type UserRole = "OWNER" | "ADMIN" | "MEMBER";
 export type PanelLayout = Record<string, boolean>;
@@ -10,6 +11,7 @@ export interface User {
   settings: {
     themeId: ThemeId;
     panelLayout: PanelLayout;
+    shortcuts: ShortcutMap;
   };
 }
 

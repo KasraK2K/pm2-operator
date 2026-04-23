@@ -3,6 +3,7 @@ import { type Request, Router } from "express";
 import { z } from "zod";
 
 import { DEFAULT_THEME_ID, THEME_IDS } from "../config/themes";
+import { SHORTCUT_ACTIONS } from "../config/shortcuts";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
 import { writeAuditLog } from "../services/audit.service";
@@ -34,18 +35,26 @@ const credentialsSchema = z.object({
 });
 
 const themeIdSchema = z.enum(THEME_IDS);
+const shortcutSchema = z.string().trim().min(1).max(64);
+const shortcutsSchema = z.object(
+  Object.fromEntries(SHORTCUT_ACTIONS.map((action) => [action, shortcutSchema])) as Record<
+    (typeof SHORTCUT_ACTIONS)[number],
+    typeof shortcutSchema
+  >
+);
 
 const settingsSchema = z
   .object({
     themeId: themeIdSchema.optional(),
-    panelLayout: z.record(z.string().min(1), z.boolean()).optional()
+    panelLayout: z.record(z.string().min(1), z.boolean()).optional(),
+    shortcuts: shortcutsSchema.optional()
   })
   .superRefine((value, context) => {
-    if (value.themeId === undefined && value.panelLayout === undefined) {
+    if (value.themeId === undefined && value.panelLayout === undefined && value.shortcuts === undefined) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["themeId"],
-        message: "Provide a theme or panel layout update."
+        message: "Provide a settings update."
       });
     }
   });
@@ -274,7 +283,8 @@ authRoutes.patch(
     const body = settingsSchema.parse(request.body);
     const user = await updateUserSettings(request.auth!.userId, {
       themeId: body.themeId,
-      panelLayout: body.panelLayout
+      panelLayout: body.panelLayout,
+      shortcuts: body.shortcuts
     });
 
     await writeAuditLog({
@@ -285,7 +295,8 @@ authRoutes.patch(
       targetId: request.auth!.userId,
       metadata: {
         themeId: body.themeId ?? null,
-        panelLayout: body.panelLayout ?? null
+        panelLayout: body.panelLayout ?? null,
+        shortcuts: body.shortcuts ?? null
       }
     });
 
