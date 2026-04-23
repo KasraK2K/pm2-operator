@@ -1182,7 +1182,7 @@ export function Dashboard({
         <div className="mx-auto flex h-full max-w-[1800px] flex-col gap-3">
           <header className="panel flex flex-wrap items-center justify-between gap-3 px-3 py-2.5" data-ui="app-header">
             <div className="flex items-center gap-3">
-              <BrandLockup descriptor="Operations workspace" size="compact" />
+              <BrandLockup descriptor="Ops" size="compact" />
               <span className="badge hidden sm:inline-flex">{hosts.length} hosts</span>
             </div>
 
@@ -1281,9 +1281,9 @@ export function Dashboard({
                 <div className="flex items-center justify-between gap-2">
                   <div className={`${sidebarCollapsed ? "hidden" : "block"}`}>
                     <div className="section-kicker">Hosts</div>
-                    <div className="mt-1 text-sm font-semibold text-[color:var(--text)]">
-                      {filteredHosts.length} visible
-                    </div>
+                      <div className="mt-1 text-sm font-semibold text-[color:var(--text)]">
+                        {filteredHosts.length} visible
+                      </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
@@ -1323,7 +1323,7 @@ export function Dashboard({
                         className="field pl-9"
                         data-ui="host-search"
                         onChange={(event) => setHostSearch(event.target.value)}
-                        placeholder="Search name, host, or user"
+                        placeholder="Search hosts"
                         value={hostSearch}
                       />
                     </div>
@@ -1367,9 +1367,9 @@ export function Dashboard({
                   <div className="flex h-full items-center justify-center p-4 text-center text-sm text-[color:var(--text-muted)]">
                     {hosts.length === 0
                       ? canManageWorkspace
-                        ? "Add your first SSH host to begin remote PM2 monitoring."
-                        : "No shared hosts are available yet. Ask an owner or admin to add one."
-                      : "No hosts match the current search or tag filters."}
+                        ? "Add SSH host."
+                        : "No hosts."
+                      : "No matches."}
                   </div>
                 ) : sidebarCollapsed ? (
                   <div className="space-y-2">
@@ -1440,9 +1440,9 @@ export function Dashboard({
                                   ) : null}
                                 </div>
                               ) : null}
-                              <div className="mt-2 text-[11px] text-[color:var(--text-soft)]">
-                                {formatLastTested(host.lastTestedAt)}
-                              </div>
+                          <div className="mt-2 text-[11px] text-[color:var(--text-soft)]">
+                            {formatLastTested(host.lastTestedAt)}
+                          </div>
                             </div>
 
                             {canManageWorkspace ? (
@@ -1566,7 +1566,7 @@ export function Dashboard({
                       <div className="space-y-1.5">
                         {tags.length === 0 ? (
                           <div className="text-xs text-[color:var(--text-muted)]">
-                            Create tags to filter hosts by role, environment, or team.
+                            No tags
                           </div>
                         ) : (
                           tags.map((tag) => (
@@ -1630,12 +1630,9 @@ export function Dashboard({
                             {selectedHost.authType === "PASSWORD" ? "Password auth" : "Private key"}
                           </span>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--text-muted)]">
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-[color:var(--text-soft)]">
                           <span>
                             {selectedHost.username}@{selectedHost.host}:{selectedHost.port}
-                          </span>
-                          <span className="max-w-[28rem] truncate" title={selectedHost.hostFingerprint ?? ""}>
-                            Fingerprint {selectedHost.hostFingerprint ?? "not pinned"}
                           </span>
                         </div>
                       </div>
@@ -1672,7 +1669,7 @@ export function Dashboard({
                   ) : (
                     <div className="mt-3 flex items-center gap-3 text-sm text-[color:var(--text-muted)]">
                       <Server className="size-4" />
-                      Select a host to inspect PM2 processes and stream logs.
+                      Select a host.
                     </div>
                   )
                 ) : null}
@@ -1684,9 +1681,6 @@ export function Dashboard({
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <div className="section-kicker">Processes</div>
-                        <div className="mt-1 text-sm text-[color:var(--text-muted)]">
-                          Search, filter, and launch PM2 monitoring targets.
-                        </div>
                       </div>
                       <CollapseToggleButton
                         collapsed={isPanelCollapsed("processes-section")}
@@ -1703,7 +1697,7 @@ export function Dashboard({
                           className="field pl-9"
                           data-ui="process-search"
                           onChange={(event) => setProcessSearch(event.target.value)}
-                          placeholder="Search PM2 processes"
+                          placeholder="Search processes"
                           value={processSearch}
                         />
                       </div>
@@ -1814,7 +1808,7 @@ export function Dashboard({
                         ) : filteredProcesses.length === 0 ? (
                           <tr>
                             <td className="px-4 py-12 text-center text-sm text-[color:var(--text-muted)]" colSpan={9}>
-                              No processes match the current filters.
+                              No matches.
                             </td>
                           </tr>
                         ) : (
@@ -1874,9 +1868,8 @@ export function Dashboard({
 
                   {!isPanelCollapsed("processes-section") ? (
                   <div className="flex flex-wrap items-center gap-2 border-t border-[color:var(--border)] px-4 py-2 text-xs text-[color:var(--text-muted)]">
-                    <span>{selectedProcessIds.length} process{selectedProcessIds.length === 1 ? "" : "es"} selected</span>
+                    <span>{selectedProcessIds.length} selected</span>
                     <span className="badge">{selectedHost ? selectedHost.host : "No host selected"}</span>
-                    <span className="badge">Status filter: {statusFilter}</span>
                   </div>
                   ) : null}
                 </section>

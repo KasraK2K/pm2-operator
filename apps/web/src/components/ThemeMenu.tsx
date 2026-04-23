@@ -155,10 +155,7 @@ export function ThemeMenu({
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
-                    <div className="section-kicker">Theme selector</div>
-                    <div className="mt-1 text-sm font-medium text-[color:var(--text)]">
-                      Hover to preview, click to save for your account.
-                    </div>
+                    <div className="section-kicker">Theme</div>
                   </div>
                   <div className="rounded-full border border-[color:var(--border)] bg-[color:var(--surface-soft)] px-2.5 py-1 text-[11px] text-[color:var(--text-soft)]">
                     {busy ? "Saving..." : "8 themes"}
@@ -204,9 +201,6 @@ export function ThemeMenu({
                           <div className="min-w-0">
                             <div className="truncate text-sm font-semibold text-[color:var(--text)]">
                               {theme.label}
-                            </div>
-                            <div className="mt-1 text-xs leading-5 text-[color:var(--text-muted)]">
-                              {theme.description}
                             </div>
                           </div>
                           {active ? (

@@ -133,6 +133,14 @@ export function wrapCommandForLoginShell(command: string) {
 async function openShell(host: HostLike, options?: { repinFingerprint?: boolean }): Promise<ShellSession> {
   const secrets = resolveHostSecrets(host);
 
+  if (host.authType === "PASSWORD" && !secrets.password) {
+    throw new AppError(400, "SSH_SECRET_MISSING", "SSH password is missing. Edit the host and re-enter its password.");
+  }
+
+  if (host.authType === "PRIVATE_KEY" && !secrets.privateKey) {
+    throw new AppError(400, "SSH_SECRET_MISSING", "SSH private key is missing. Edit the host and re-enter its private key.");
+  }
+
   return new Promise((resolve, reject) => {
     const connection = new Client();
     let fingerprint = host.hostFingerprint ?? "";

@@ -58,14 +58,9 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <div className="section-kicker">SSH host</div>
-            <h2 className="mt-2 text-2xl font-semibold text-[color:var(--text)]">
+            <h2 className="mt-1 text-xl font-semibold text-[color:var(--text)]">
               {host ? "Edit connection" : "Add connection"}
             </h2>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
-              {host
-                ? "Leave secret fields blank to keep the currently encrypted values."
-                : "Create a new remote PM2 target and store its SSH secrets encrypted at rest."}
-            </p>
           </div>
           <button className="button-ghost" onClick={onClose} type="button">
             Close
@@ -77,7 +72,23 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
           data-ui="host-form"
           onSubmit={async (event) => {
             event.preventDefault();
-            await onSubmit(form, host?.id);
+            const payload = { ...form };
+
+            if (host) {
+              if (!payload.password?.trim()) {
+                delete payload.password;
+              }
+
+              if (!payload.privateKey?.trim()) {
+                delete payload.privateKey;
+              }
+
+              if (!payload.passphrase?.trim()) {
+                delete payload.passphrase;
+              }
+            }
+
+            await onSubmit(payload, host?.id);
           }}
         >
           <label className="space-y-2 text-sm text-[color:var(--text-muted)]">
@@ -169,7 +180,7 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
                 onChange={(event) =>
                   setForm((current) => ({ ...current, password: event.target.value }))
                 }
-                placeholder={host ? "Leave blank to keep the current password" : "Enter SSH password"}
+                placeholder={host ? "Keep current" : "Password"}
                 type="password"
                 value={form.password ?? ""}
               />
@@ -183,9 +194,7 @@ export function HostModal({ open, host, tags, busy, onClose, onSubmit }: HostMod
                   onChange={(event) =>
                     setForm((current) => ({ ...current, privateKey: event.target.value }))
                   }
-                  placeholder={
-                    host ? "Leave blank to keep the current private key" : "Paste PEM or OpenSSH key"
-                  }
+                  placeholder={host ? "Keep current key" : "Private key"}
                   value={form.privateKey ?? ""}
                 />
               </label>

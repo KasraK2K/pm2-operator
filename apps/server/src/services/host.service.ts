@@ -22,6 +22,10 @@ interface HostSecretsInput {
   passphrase?: string;
 }
 
+interface HostSecretUpdateInput extends HostSecretsInput {
+  resetForAuthTypeSwitch?: boolean;
+}
+
 export function normalizeSecretInput(value?: string | null) {
   if (!value) {
     return undefined;
@@ -48,6 +52,30 @@ export function buildEncryptedSecrets(input: HostSecretsInput) {
     encryptedPassword: null,
     encryptedPrivateKey: privateKey ? encryptSecret(privateKey) : null,
     encryptedPassphrase: passphrase ? encryptSecret(passphrase) : null
+  };
+}
+
+export function buildEncryptedSecretUpdate(input: HostSecretUpdateInput): Prisma.SshHostUpdateInput {
+  const password = normalizeSecretInput(input.password);
+  const privateKey = normalizeSecretInput(input.privateKey);
+  const passphrase = normalizeSecretInput(input.passphrase);
+
+  if (input.resetForAuthTypeSwitch) {
+    return buildEncryptedSecrets({
+      authType: input.authType,
+      password,
+      privateKey,
+      passphrase
+    });
+  }
+
+  if (input.authType === "PASSWORD") {
+    return password ? { encryptedPassword: encryptSecret(password) } : {};
+  }
+
+  return {
+    ...(privateKey ? { encryptedPrivateKey: encryptSecret(privateKey) } : {}),
+    ...(passphrase ? { encryptedPassphrase: encryptSecret(passphrase) } : {})
   };
 }
 

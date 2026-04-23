@@ -183,9 +183,6 @@ export function SettingsPanel({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="section-kicker">Settings</div>
-            <div className="mt-1 text-base font-semibold text-[color:var(--text)]">
-              Account and workspace administration
-            </div>
           </div>
 
           <div className="flex items-center gap-1 rounded-[0.9rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] p-1" data-ui="settings-tabs">
@@ -236,7 +233,7 @@ export function SettingsPanel({
                   <input
                     className="field"
                     onChange={(event) => setProfileCurrentPassword(event.target.value)}
-                    placeholder="Required to save profile changes"
+                    placeholder="Required"
                     type="password"
                     value={profileCurrentPassword}
                   />
@@ -248,7 +245,7 @@ export function SettingsPanel({
                     className="field"
                     minLength={8}
                     onChange={(event) => setProfileNewPassword(event.target.value)}
-                    placeholder="Leave blank to keep the current password"
+                    placeholder="Optional"
                     type="password"
                     value={profileNewPassword}
                   />
@@ -283,21 +280,11 @@ export function SettingsPanel({
                   <span className={`badge border-transparent ${roleTone(currentUser.role)}`}>
                     {currentUser.role}
                   </span>
-                  <span className="text-xs text-[color:var(--text-muted)]">
-                    {currentUser.role === "OWNER"
-                      ? "Full workspace authority"
-                      : currentUser.role === "ADMIN"
-                        ? "Workspace manager"
-                        : "Read-only operator"}
-                  </span>
                 </div>
               </div>
 
               <div className="panel-soft p-4" data-ui="theme-settings-card">
                 <div className="text-sm font-semibold text-[color:var(--text)]">Theme</div>
-                <p className="mt-1 text-xs leading-5 text-[color:var(--text-muted)]">
-                  Save a default dashboard theme for this account. Hover previews stay available in the header.
-                </p>
                 <label className="mt-3 block space-y-1.5 text-sm text-[color:var(--text-muted)]">
                   <span>Saved theme</span>
                   <select
@@ -346,7 +333,7 @@ export function SettingsPanel({
                     placeholder={
                       editorMode === "create"
                         ? "At least 8 characters"
-                        : "Leave blank to keep the current password"
+                        : "Optional"
                     }
                     type="password"
                     value={userPassword}
@@ -393,9 +380,6 @@ export function SettingsPanel({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold text-[color:var(--text)]">Workspace users</div>
-                  <div className="mt-1 text-xs text-[color:var(--text-muted)]">
-                    Owners stay locked. Admins and members can be updated here.
-                  </div>
                 </div>
                 <button className="button-secondary" onClick={() => void onRefreshUsers()} type="button">
                   Refresh

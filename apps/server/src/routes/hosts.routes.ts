@@ -8,6 +8,7 @@ import { writeAuditLog } from "../services/audit.service";
 import { assertWorkspaceManager } from "../services/authorization.service";
 import {
   buildEncryptedSecrets,
+  buildEncryptedSecretUpdate,
   getHostById,
   hostSummaryInclude,
   normalizeSecretInput,
@@ -215,16 +216,24 @@ hostRoutes.patch(
 
     const nextAuthType = body.authType ?? existing.authType;
     const switchingAuth = body.authType && body.authType !== existing.authType;
-    const secretsProvided =
-      body.password !== undefined || body.privateKey !== undefined || body.passphrase !== undefined;
+    const password = normalizeSecretInput(body.password);
+    const privateKey = normalizeSecretInput(body.privateKey);
 
-    if (switchingAuth && nextAuthType === "PASSWORD" && !normalizeSecretInput(body.password)) {
+    if (switchingAuth && nextAuthType === "PASSWORD" && !password) {
       throw new AppError(400, "PASSWORD_REQUIRED", "Password is required when switching to password authentication.");
     }
 
-    if (switchingAuth && nextAuthType === "PRIVATE_KEY" && !normalizeSecretInput(body.privateKey)) {
+    if (switchingAuth && nextAuthType === "PRIVATE_KEY" && !privateKey) {
       throw new AppError(400, "PRIVATE_KEY_REQUIRED", "Private key is required when switching to private key authentication.");
     }
+
+    const secretUpdate = buildEncryptedSecretUpdate({
+      authType: nextAuthType,
+      password: body.password,
+      privateKey: body.privateKey,
+      passphrase: body.passphrase,
+      resetForAuthTypeSwitch: Boolean(switchingAuth)
+    });
 
     const host = await prisma.sshHost.update({
       where: { id: existing.id },
@@ -234,14 +243,7 @@ hostRoutes.patch(
         port: body.port,
         username: body.username?.trim(),
         authType: nextAuthType,
-        ...(secretsProvided || switchingAuth
-          ? buildEncryptedSecrets({
-              authType: nextAuthType,
-              password: body.password,
-              privateKey: body.privateKey,
-              passphrase: body.passphrase
-            })
-          : {}),
+        ...secretUpdate,
         hostTags: buildTagSet(body.tagIds),
         hostFingerprint:
           body.host || body.port || body.username || body.authType ? null : undefined,

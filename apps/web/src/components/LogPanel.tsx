@@ -73,15 +73,9 @@ export function LogPanel({
   if (!host || processes.length === 0) {
     return (
       <section className="panel flex min-h-0 flex-1 items-center justify-center px-6 py-8 text-center" data-ui="logs-empty-state">
-        <div className="max-w-lg space-y-3">
+        <div className="max-w-sm space-y-2">
           <div className="section-kicker">Live logs</div>
-          <div className="text-lg font-semibold text-[color:var(--text)]">
-            Select a host and open one or more PM2 processes to start streaming logs.
-          </div>
-          <p className="text-sm leading-6 text-[color:var(--text-muted)]">
-            The log workspace restores after reload, supports merged process streams, and keeps only
-            the last buffered lines in memory for stable long-running sessions.
-          </p>
+          <div className="text-base font-semibold text-[color:var(--text)]">Select processes to stream.</div>
         </div>
       </section>
     );
@@ -94,16 +88,14 @@ export function LogPanel({
       <div className="border-b border-[color:var(--border)] px-4 py-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="section-kicker">Live logs</div>
+            <div className="section-kicker">{status}</div>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <h3 className="truncate text-base font-semibold text-[color:var(--text)]">
                 {host.name} / {title}
               </h3>
-              <span className="badge">{status}</span>
             </div>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--text-muted)]">
+            <div className="mt-1 flex flex-wrap gap-2 text-xs text-[color:var(--text-soft)]">
               <span>{host.username}@{host.host}:{host.port}</span>
-              <span>Fingerprint {host.hostFingerprint ?? "not pinned"}</span>
             </div>
           </div>
 
@@ -134,7 +126,7 @@ export function LogPanel({
             <input
               className="field"
               onChange={(event) => onIncludePatternChange(event.target.value)}
-              placeholder="Optional"
+              placeholder="regex"
               value={includePattern}
             />
           </label>
@@ -143,7 +135,7 @@ export function LogPanel({
             <input
               className="field"
               onChange={(event) => onExcludePatternChange(event.target.value)}
-              placeholder="Optional"
+              placeholder="regex"
               value={excludePattern}
             />
           </label>
@@ -197,7 +189,7 @@ export function LogPanel({
       >
         {lines.length === 0 ? (
           <div className="flex h-full items-center justify-center text-center text-sm text-[color:var(--terminal-muted)]">
-            Waiting for log output...
+            Waiting...
           </div>
         ) : (
           <div className="space-y-1">

@@ -26,16 +26,12 @@ export function AuthScreen({ mode, ownerExists, busy, error, onSubmit }: AuthScr
       <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[1280px] gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <section className="panel hidden min-h-[34rem] flex-col justify-between p-6 lg:flex" data-ui="auth-hero">
           <div className="space-y-6">
-            <BrandLockup descriptor="Secure remote PM2 observability" size="hero" />
+            <BrandLockup descriptor="PM2 operations" size="hero" />
 
-            <div className="max-w-xl space-y-4">
+            <div className="max-w-xl">
               <h1 className="text-4xl font-semibold leading-tight text-[color:var(--text)]">
-                Remote PM2 monitoring built for operators who live in the terminal.
+                Remote PM2 logs and process state.
               </h1>
-              <p className="max-w-lg text-sm leading-7 text-[color:var(--text-muted)]">
-                Keep SSH hosts organized, inspect PM2 health remotely, and stream merged logs in a
-                focused workspace with persistent context and theme-aware comfort.
-              </p>
             </div>
           </div>
 
@@ -43,19 +39,19 @@ export function AuthScreen({ mode, ownerExists, busy, error, onSubmit }: AuthScr
             <div className="panel-soft p-4">
               <div className="section-kicker">Security</div>
               <div className="mt-2 text-sm font-medium text-[color:var(--text)]">
-                AES-256-GCM encrypted SSH secrets at rest.
+                Encrypted secrets
               </div>
             </div>
             <div className="panel-soft p-4">
               <div className="section-kicker">Discovery</div>
               <div className="mt-2 text-sm font-medium text-[color:var(--text)]">
-                Remote `pm2 jlist` inventory with status and resource data.
+                PM2 inventory
               </div>
             </div>
             <div className="panel-soft p-4">
               <div className="section-kicker">Logs</div>
               <div className="mt-2 text-sm font-medium text-[color:var(--text)]">
-                Live SSH log streams with regex filters and bounded memory.
+                Live streams
               </div>
             </div>
           </div>
@@ -74,18 +70,9 @@ export function AuthScreen({ mode, ownerExists, busy, error, onSubmit }: AuthScr
                 <h2 className="mt-2 text-3xl font-semibold text-[color:var(--text)]">
                   {createOwner ? "Create the owner account" : "Sign in to your workspace"}
                 </h2>
-                <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
-                  {createOwner
-                    ? "This first account becomes the workspace owner and can invite admins or members later."
-                    : "Resume your host inventory, process triage, live logs, and saved workspace context."}
-                </p>
               </div>
 
-              <div className="badge">
-                {ownerExists
-                  ? "The workspace owner already exists. Public registration is disabled."
-                  : "No owner account exists yet. Bootstrap is available once."}
-              </div>
+              <div className="badge">{ownerExists ? "Owner exists" : "Bootstrap available"}</div>
             </div>
 
             <form
