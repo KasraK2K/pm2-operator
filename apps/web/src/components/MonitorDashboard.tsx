@@ -154,6 +154,38 @@ export function MonitorDashboard({
       status: liveProcess?.status ?? target.status ?? "unknown"
     };
   });
+  const runtimeSummaryItems = [
+    {
+      label: "Remote hostname",
+      value: snapshot?.host?.hostname ?? "n/a",
+      title: snapshot?.host?.hostname ?? "n/a"
+    },
+    {
+      label: "PM2 version",
+      value: snapshot?.host?.pm2Version ?? "n/a",
+      title: snapshot?.host?.pm2Version ?? "n/a"
+    },
+    {
+      label: "OS",
+      value: formatHostOs(snapshot?.host?.os ?? null),
+      title: snapshot?.host?.os ?? formatHostOs(snapshot?.host?.os ?? null)
+    },
+    {
+      label: "CPU cores",
+      value: snapshot?.host?.cpuCores != null ? String(snapshot.host.cpuCores) : "n/a",
+      title: snapshot?.host?.cpuCores != null ? String(snapshot.host.cpuCores) : "n/a"
+    },
+    {
+      label: "Host memory",
+      value: snapshot?.host?.totalMemory ? formatBytes(snapshot.host.totalMemory) : "n/a",
+      title: snapshot?.host?.totalMemory ? formatBytes(snapshot.host.totalMemory) : "n/a"
+    },
+    {
+      label: "Load average",
+      value: formatLoadAverage(snapshot?.host?.loadAverage ?? []),
+      title: formatLoadAverage(snapshot?.host?.loadAverage ?? [])
+    }
+  ];
 
   return (
     <section className="min-h-0 flex-1 space-y-3 overflow-auto pr-1" data-ui="monitor-dashboard">
@@ -324,53 +356,24 @@ export function MonitorDashboard({
         </div>
 
         {!isPanelCollapsed("dashboard-runtime-section") ? (
-      <div className="mt-3">
-        <div className="panel-soft p-3" data-ui="dashboard-host-summary">
-          <div className="section-kicker">Host summary</div>
-
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div>
-              <div className="text-xs text-[color:var(--text-soft)]">Remote hostname</div>
-              <div className="mt-1 text-sm font-medium text-[color:var(--text)]">
-                {snapshot?.host?.hostname ?? "n/a"}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-[color:var(--text-soft)]">PM2 version</div>
-              <div className="mt-1 text-sm font-medium text-[color:var(--text)]">
-                {snapshot?.host?.pm2Version ?? "n/a"}
-              </div>
-            </div>
-            <div className="sm:col-span-2">
-              <div className="text-xs text-[color:var(--text-soft)]">OS</div>
+          <div
+            className="mt-2.5 grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
+            data-ui="dashboard-host-summary"
+          >
+            {runtimeSummaryItems.map((item) => (
               <div
-                className="mt-1 text-sm font-medium text-[color:var(--text)]"
-                title={snapshot?.host?.os ?? ""}
+                className="rounded-[0.8rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] px-3 py-2"
+                key={item.label}
               >
-                {formatHostOs(snapshot?.host?.os ?? null)}
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-soft)]">
+                  {item.label}
+                </div>
+                <div className="mt-1 truncate text-sm font-medium leading-5 text-[color:var(--text)]" title={item.title}>
+                  {item.value}
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="text-xs text-[color:var(--text-soft)]">CPU cores</div>
-              <div className="mt-1 text-sm font-medium text-[color:var(--text)]">
-                {snapshot?.host?.cpuCores ?? "n/a"}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-[color:var(--text-soft)]">Host memory</div>
-              <div className="mt-1 text-sm font-medium text-[color:var(--text)]">
-                {snapshot?.host?.totalMemory ? formatBytes(snapshot.host.totalMemory) : "n/a"}
-              </div>
-            </div>
-            <div className="sm:col-span-2">
-              <div className="text-xs text-[color:var(--text-soft)]">Load average</div>
-              <div className="mt-1 text-sm font-medium text-[color:var(--text)]">
-                {formatLoadAverage(snapshot?.host?.loadAverage ?? [])}
-              </div>
-            </div>
+            ))}
           </div>
-        </div>
-      </div>
         ) : null}
       </div>
 
