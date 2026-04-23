@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 
 interface CollapseToggleButtonProps {
   collapsed: boolean;
@@ -9,12 +9,13 @@ export function CollapseToggleButton({ collapsed, onClick }: CollapseToggleButto
   return (
     <button
       aria-expanded={!collapsed}
-      className="button-ghost h-8 px-2 text-xs"
+      aria-label={collapsed ? "Expand" : "Collapse"}
+      className="button-ghost h-8 w-8 p-0"
       onClick={onClick}
+      title={collapsed ? "Expand" : "Collapse"}
       type="button"
     >
-      <ChevronDown className={`mr-1 size-4 transition-transform ${collapsed ? "-rotate-90" : ""}`} />
-      {collapsed ? "Expand" : "Collapse"}
+      {collapsed ? <Plus className="size-4" /> : <Minus className="size-4" />}
     </button>
   );
 }
