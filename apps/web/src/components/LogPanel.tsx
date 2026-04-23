@@ -89,19 +89,7 @@ export function LogPanel({
     <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden" data-ui="logs-panel">
       <div className="border-b border-[color:var(--border)] px-4 py-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="section-kicker">{status}</div>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <h3 className="truncate text-base font-semibold text-[color:var(--text)]">
-                {host.name} / {title}
-              </h3>
-            </div>
-            <div className="mt-1 flex flex-wrap gap-2 text-xs text-[color:var(--text-soft)]">
-              <span>{host.username}@{host.host}:{host.port}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <button
               aria-label="Back to processes"
               className="button-ghost h-8 w-8 p-0"
@@ -111,6 +99,20 @@ export function LogPanel({
             >
               <ArrowLeft className="size-4" />
             </button>
+            <div className="min-w-0">
+              <div className="section-kicker">{status}</div>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <h3 className="truncate text-base font-semibold text-[color:var(--text)]">
+                  {host.name} / {title}
+                </h3>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-2 text-xs text-[color:var(--text-soft)]">
+                <span>{host.username}@{host.host}:{host.port}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
             <button className="button-secondary" onClick={onPauseToggle} type="button">
               {paused ? <Play className="mr-2 size-4" /> : <Pause className="mr-2 size-4" />}
               {paused ? "Resume" : "Pause"}
