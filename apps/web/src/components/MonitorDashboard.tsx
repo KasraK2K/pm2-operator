@@ -1,6 +1,7 @@
 import {
   Activity,
   AlertTriangle,
+  ArrowLeft,
   Cpu,
   HardDrive,
   RefreshCw,
@@ -28,17 +29,10 @@ import type {
   Pm2Process
 } from "../lib/types";
 
-export interface DashboardHistorySample {
-  timestamp: string;
-  totalCpu: number;
-  totalMemory: number;
-}
-
 interface MonitorDashboardProps {
   host: Host | null;
   activeTargets: Pm2Process[];
   snapshot: Pm2DashboardSnapshot | null;
-  history: DashboardHistorySample[];
   dashboardStatus: string;
   dashboardError: string | null;
   logStatus: string;
@@ -48,6 +42,7 @@ interface MonitorDashboardProps {
   actionBusyLabel: string | null;
   isPanelCollapsed: (panelId: string) => boolean;
   onAction: (action: Pm2DashboardAction, processIds: number[]) => void;
+  onBackToProcesses: () => void;
   onOpenLogs: () => void;
   onRefresh: () => void;
   onTogglePanel: (panelId: string) => void;
@@ -131,6 +126,7 @@ export function MonitorDashboard({
   actionBusyLabel,
   isPanelCollapsed,
   onAction,
+  onBackToProcesses,
   onOpenLogs,
   onRefresh,
   onTogglePanel
@@ -161,61 +157,57 @@ export function MonitorDashboard({
 
   return (
     <section className="min-h-0 flex-1 space-y-3 overflow-auto pr-1" data-ui="monitor-dashboard">
-      <div className="panel px-4 py-3" data-ui="dashboard-header">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2" data-ui="dashboard-toolbar">
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            aria-label="Back to processes"
+            className="button-ghost h-8 w-8 p-0"
+            onClick={onBackToProcesses}
+            title="Back to processes"
+            type="button"
+          >
+            <ArrowLeft className="size-4" />
+          </button>
           <div className="min-w-0">
-            <div className="section-kicker">Dashboard</div>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <h3 className="truncate text-lg font-semibold text-[color:var(--text)]">
-                {host.name}
-              </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="truncate text-base font-semibold text-[color:var(--text)]">{host.name}</h3>
               <span className="badge">{dashboardStatus}</span>
               <span className="badge">{activeTargets.length} target{activeTargets.length === 1 ? "" : "s"}</span>
             </div>
-            <div className="mt-1 flex flex-wrap gap-2 text-xs text-[color:var(--text-soft)]">
-              <span>
-                {host.username}@{host.host}:{host.port}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <CollapseToggleButton
-              collapsed={isPanelCollapsed("dashboard-header")}
-              onClick={() => onTogglePanel("dashboard-header")}
-            />
-            <button className="button-secondary" onClick={onRefresh} type="button">
-              <RefreshCw className="mr-2 size-4" />
-              Refresh
-            </button>
-            {canManageActions ? (
-              <>
-                <button
-                  className="button-secondary"
-                  disabled={processes.length === 0 || !!actionBusyLabel}
-                  onClick={() => onAction("reload", processes.map((process) => process.pmId))}
-                  type="button"
-                >
-                  <Zap className="mr-2 size-4" />
-                  Reload
-                </button>
-                <button
-                  className="button-primary"
-                  disabled={processes.length === 0 || !!actionBusyLabel}
-                  onClick={() => onAction("restart", processes.map((process) => process.pmId))}
-                  type="button"
-                >
-                  <RotateCcw className="mr-2 size-4" />
-                  Restart
-                </button>
-              </>
-            ) : null}
           </div>
         </div>
 
-        {!isPanelCollapsed("dashboard-header") ? (
-          <>
-        <div className="mt-3 flex flex-wrap items-start gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button className="button-secondary" onClick={onRefresh} type="button">
+            <RefreshCw className="mr-2 size-4" />
+            Refresh
+          </button>
+          {canManageActions ? (
+            <>
+              <button
+                className="button-secondary"
+                disabled={processes.length === 0 || !!actionBusyLabel}
+                onClick={() => onAction("reload", processes.map((process) => process.pmId))}
+                type="button"
+              >
+                <Zap className="mr-2 size-4" />
+                Reload
+              </button>
+              <button
+                className="button-primary"
+                disabled={processes.length === 0 || !!actionBusyLabel}
+                onClick={() => onAction("restart", processes.map((process) => process.pmId))}
+                type="button"
+              >
+                <RotateCcw className="mr-2 size-4" />
+                Restart
+              </button>
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-start gap-2" data-ui="dashboard-targets">
           {headerTargets.map((target) => (
             <div
               className="inline-flex max-w-full items-center gap-2 rounded-[0.9rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] px-2.5 py-1.5"
@@ -228,28 +220,25 @@ export function MonitorDashboard({
               <StatusPill compact status={target.status} />
             </div>
           ))}
-        </div>
-
-        {actionBusyLabel ? (
-          <div className="mt-3 flash" data-tone="info">
-            {actionBusyLabel}
-          </div>
-        ) : null}
-
-        {dashboardError ? (
-          <div className="mt-3 flash" data-tone="error">
-            {dashboardError}
-          </div>
-        ) : null}
-
-        {missingTargetPmIds.length > 0 ? (
-          <div className="mt-3 flash" data-tone="info">
-            Missing PM2 IDs: {missingTargetPmIds.join(", ")}
-          </div>
-        ) : null}
-          </>
-        ) : null}
       </div>
+
+      {actionBusyLabel ? (
+        <div className="flash" data-tone="info">
+          {actionBusyLabel}
+        </div>
+      ) : null}
+
+      {dashboardError ? (
+        <div className="flash" data-tone="error">
+          {dashboardError}
+        </div>
+      ) : null}
+
+      {missingTargetPmIds.length > 0 ? (
+        <div className="flash" data-tone="info">
+          Missing PM2 IDs: {missingTargetPmIds.join(", ")}
+        </div>
+      ) : null}
 
       <div className="panel p-3" data-ui="dashboard-kpi-strip">
         <div className="flex items-center justify-between gap-3">

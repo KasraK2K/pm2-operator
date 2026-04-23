@@ -10,7 +10,6 @@ import {
   Plus,
   RefreshCw,
   Search,
-  Server,
   Tag as TagIcon,
   TerminalSquare,
   Trash2
@@ -43,7 +42,7 @@ import { BrandLockup } from "./Brand";
 import { CollapseToggleButton } from "./CollapseToggleButton";
 import { HostModal } from "./HostModal";
 import { LogPanel } from "./LogPanel";
-import { MonitorDashboard, type DashboardHistorySample } from "./MonitorDashboard";
+import { MonitorDashboard } from "./MonitorDashboard";
 import { SettingsPanel } from "./SettingsPanel";
 import { StatusPill } from "./StatusPill";
 import { TagChip } from "./TagChip";
@@ -61,7 +60,6 @@ interface DashboardProps {
 type FlashTone = "success" | "error" | "info";
 
 const CLIENT_LOG_BUFFER_LIMIT = 2000;
-const DASHBOARD_HISTORY_LIMIT = 60;
 
 function sortHosts(hosts: Host[]) {
   return [...hosts].sort((left, right) => left.name.localeCompare(right.name));
@@ -155,7 +153,6 @@ export function Dashboard({
   const [logStatus, setLogStatus] = useState("idle");
   const [logError, setLogError] = useState<string | null>(null);
   const [dashboardSnapshot, setDashboardSnapshot] = useState<Pm2DashboardSnapshot | null>(null);
-  const [dashboardHistory, setDashboardHistory] = useState<DashboardHistorySample[]>([]);
   const [dashboardStatus, setDashboardStatus] = useState("idle");
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [dashboardActionBusyLabel, setDashboardActionBusyLabel] = useState<string | null>(null);
@@ -339,7 +336,6 @@ export function Dashboard({
 
   function clearDashboard() {
     setDashboardSnapshot(null);
-    setDashboardHistory([]);
     setDashboardError(null);
     setDashboardActionBusyLabel(null);
   }
@@ -709,16 +705,6 @@ export function Dashboard({
       setDashboardSnapshot(snapshot);
       setDashboardError(null);
       setDashboardStatus("streaming");
-      setDashboardHistory((current) =>
-        [
-          ...current,
-          {
-            timestamp: snapshot.timestamp,
-            totalCpu: snapshot.aggregate.totalCpu,
-            totalMemory: snapshot.aggregate.totalMemory
-          }
-        ].slice(-DASHBOARD_HISTORY_LIMIT)
-      );
     });
 
     socket.on("dashboard:error", (payload: { message: string }) => {
@@ -1609,72 +1595,6 @@ export function Dashboard({
               ) : null}
             </aside>
             <main className="flex min-h-0 flex-1 flex-col gap-3" data-ui="workspace-main">
-              <section className="panel px-4 py-3" data-ui="active-host-strip">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="section-kicker">Active host</div>
-                  <CollapseToggleButton
-                    collapsed={isPanelCollapsed("active-host-strip")}
-                    onClick={() => togglePanel("active-host-strip")}
-                  />
-                </div>
-
-                {!isPanelCollapsed("active-host-strip") ? (
-                  selectedHost ? (
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="mt-1 flex flex-wrap items-center gap-2">
-                          <h2 className="truncate text-lg font-semibold text-[color:var(--text)]">
-                            {selectedHost.name}
-                          </h2>
-                          <span className="badge">
-                            {selectedHost.authType === "PASSWORD" ? "Password auth" : "Private key"}
-                          </span>
-                        </div>
-                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-[color:var(--text-soft)]">
-                          <span>
-                            {selectedHost.username}@{selectedHost.host}:{selectedHost.port}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 rounded-[0.95rem] border border-[color:var(--border)] bg-[color:var(--surface-soft)] p-1">
-                        <button
-                          className="button-tab"
-                          data-active={activeTab === "processes"}
-                          onClick={() => setActiveTab("processes")}
-                          type="button"
-                        >
-                          Processes
-                        </button>
-                        <button
-                          className="button-tab"
-                          data-active={activeTab === "dashboard"}
-                          disabled={activeLogProcesses.length === 0}
-                          onClick={() => setActiveTab("dashboard")}
-                          type="button"
-                        >
-                          Dashboard
-                        </button>
-                        <button
-                          className="button-tab"
-                          data-active={activeTab === "logs"}
-                          disabled={activeLogProcesses.length === 0}
-                          onClick={() => setActiveTab("logs")}
-                          type="button"
-                        >
-                          Logs
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-3 flex items-center gap-3 text-sm text-[color:var(--text-muted)]">
-                      <Server className="size-4" />
-                      Select a host.
-                    </div>
-                  )
-                ) : null}
-              </section>
-
               {activeTab === "processes" ? (
                 <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden" data-ui="processes-section">
                   <div className="border-b border-[color:var(--border)] px-4 py-3">
@@ -1880,13 +1800,13 @@ export function Dashboard({
                   canManageActions={canManageWorkspace}
                   dashboardError={dashboardError}
                   dashboardStatus={dashboardStatus}
-                  history={dashboardHistory}
                   host={selectedHost}
                   isPanelCollapsed={isPanelCollapsed}
                   logError={logError}
                   logLines={visibleLogLines}
                   logStatus={logStatus}
                   onAction={handleDashboardAction}
+                  onBackToProcesses={() => setActiveTab("processes")}
                   onOpenLogs={() => setActiveTab("logs")}
                   onRefresh={restartDashboardSession}
                   onTogglePanel={togglePanel}
@@ -1927,6 +1847,7 @@ export function Dashboard({
                   onExcludePatternChange={setExcludePattern}
                   onIncludePatternChange={setIncludePattern}
                   onInitialLinesChange={setInitialLines}
+                  onBackToProcesses={() => setActiveTab("processes")}
                   onPauseToggle={() => {
                     setPaused((current) => {
                       const next = !current;

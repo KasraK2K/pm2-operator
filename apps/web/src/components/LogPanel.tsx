@@ -1,4 +1,4 @@
-import { Download, Pause, Play, RotateCcw, ScrollText } from "lucide-react";
+import { ArrowLeft, Download, Pause, Play, RotateCcw, ScrollText } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import { CollapseToggleButton } from "./CollapseToggleButton";
@@ -26,6 +26,7 @@ interface LogPanelProps {
   onIncludePatternChange: (value: string) => void;
   onExcludePatternChange: (value: string) => void;
   onInitialLinesChange: (value: number) => void;
+  onBackToProcesses: () => void;
   onRestart: () => void;
   onToggleCollapsed: () => void;
 }
@@ -51,6 +52,7 @@ export function LogPanel({
   onIncludePatternChange,
   onExcludePatternChange,
   onInitialLinesChange,
+  onBackToProcesses,
   onRestart,
   onToggleCollapsed
 }: LogPanelProps) {
@@ -100,6 +102,15 @@ export function LogPanel({
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <button
+              aria-label="Back to processes"
+              className="button-ghost h-8 w-8 p-0"
+              onClick={onBackToProcesses}
+              title="Back to processes"
+              type="button"
+            >
+              <ArrowLeft className="size-4" />
+            </button>
             <CollapseToggleButton collapsed={collapsed} onClick={onToggleCollapsed} />
             <button className="button-secondary" onClick={onPauseToggle} type="button">
               {paused ? <Play className="mr-2 size-4" /> : <Pause className="mr-2 size-4" />}
