@@ -1,6 +1,7 @@
 interface BrandMarkProps {
   className?: string;
   decorative?: boolean;
+  src?: string;
 }
 
 interface BrandLockupProps {
@@ -15,9 +16,14 @@ function joinClasses(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
 }
 
-const LOGO_SRC = "/pm2-operator-logo-lockup.png";
+const FULL_LOGO_SRC = "/pm2-operator-logo-lockup.png";
+const ICON_LOGO_SRC = "/pm2-operator-favicon.png?v=3";
 
-export function BrandMark({ className = "h-11 w-auto", decorative = true }: BrandMarkProps) {
+export function BrandMark({
+  className = "h-11 w-auto",
+  decorative = true,
+  src = FULL_LOGO_SRC
+}: BrandMarkProps) {
   return (
     <img
       alt={decorative ? "" : "PM2 Operator"}
@@ -25,7 +31,7 @@ export function BrandMark({ className = "h-11 w-auto", decorative = true }: Bran
       className={joinClasses("w-auto select-none object-contain", className)}
       draggable={false}
       role={decorative ? "presentation" : undefined}
-      src={LOGO_SRC}
+      src={src}
     />
   );
 }
@@ -38,11 +44,13 @@ export function BrandLockup({
   className
 }: BrandLockupProps) {
   const centered = align === "center";
+  const isCompact = size === "compact";
   const markClassName =
-    size === "hero" ? "h-16 sm:h-20" : size === "compact" ? "h-10" : "h-12";
+    size === "hero" ? "h-16 sm:h-20" : isCompact ? "h-10 w-10" : "h-12";
   const descriptorClassName =
     size === "hero" ? "text-xs sm:text-sm tracking-[0.28em]" : "text-[10px] tracking-[0.22em]";
-  const shouldShowDescriptor = showDescriptor && size !== "compact";
+  const shouldShowDescriptor = showDescriptor && !isCompact;
+  const markSrc = isCompact ? ICON_LOGO_SRC : FULL_LOGO_SRC;
 
   return (
     <div
@@ -62,7 +70,7 @@ export function BrandLockup({
           {descriptor}
         </div>
       ) : null}
-      <BrandMark className={markClassName} decorative={false} />
+      <BrandMark className={markClassName} decorative={false} src={markSrc} />
     </div>
   );
 }
