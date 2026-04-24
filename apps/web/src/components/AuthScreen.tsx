@@ -30,7 +30,7 @@ export function AuthScreen({ mode, ownerExists, busy, error, onSubmit }: AuthScr
 
             <div className="max-w-xl">
               <h1 className="text-4xl font-semibold leading-tight text-[color:var(--text)]">
-                Remote PM2 logs and process state.
+                Operate PM2 hosts, processes, and live logs.
               </h1>
             </div>
           </div>

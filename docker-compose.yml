@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: pm2-log-viewer-postgres
+    container_name: pm2-operator-postgres
     environment:
       POSTGRES_DB: pm2_log_viewer
       POSTGRES_USER: postgres
@@ -20,7 +20,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: pm2-log-viewer-app
+    container_name: pm2-operator-app
     depends_on:
       postgres:
         condition: service_healthy
@@ -34,8 +34,7 @@ services:
       LOG_BUFFER_MAX_LINES: ${LOG_BUFFER_MAX_LINES:-2000}
     ports:
       - "3000:3000"
-    command: sh -c "npm run prisma:deploy --workspace @pm2-log-viewer/server && npm run start --workspace @pm2-log-viewer/server"
+    command: sh -c "npm run prisma:deploy --workspace @pm2-operator/server && npm run start --workspace @pm2-operator/server"
 
 volumes:
   postgres_data:
-

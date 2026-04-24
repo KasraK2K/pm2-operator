@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="docs/logo.svg" alt="Project Logo" width="100%" />
+  <img src="apps/web/public/pm2-operator-logo-lockup.png" alt="PM2 Operator Logo" width="720" />
 </p>
 
-<h1 align="center">PM2 Log Viewer</h1>
+<h1 align="center">PM2 Operator</h1>
 <p align="center">
   Operator-focused PM2 monitoring, remote process inspection, and live log streaming over SSH.
 </p>
 
 ## Overview
 
-PM2 Log Viewer is a full-stack operations console for teams running Node.js services under PM2 on remote hosts.
+PM2 Operator is a full-stack operations console for teams running Node.js services under PM2 on remote hosts.
 
 Instead of asking every operator to open separate SSH sessions, remember host details, and run PM2 commands by hand, the project provides a shared web workspace for:
 
@@ -351,7 +351,7 @@ npm run build
 Run the server tests:
 
 ```bash
-npm run test --workspace @pm2-log-viewer/server
+npm run test --workspace @pm2-operator/server
 ```
 
 The server tests cover:
@@ -401,7 +401,7 @@ Before opening a pull request:
 
 ```bash
 npm run build
-npm run test --workspace @pm2-log-viewer/server
+npm run test --workspace @pm2-operator/server
 ```
 
 Please keep pull requests focused and aligned with the existing conventions:

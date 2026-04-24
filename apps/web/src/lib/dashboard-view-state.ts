@@ -22,7 +22,7 @@ export interface DashboardViewState {
   sidebarCollapsed: boolean;
 }
 
-const STORAGE_PREFIX = "pm2-log-viewer.dashboard-view";
+const STORAGE_PREFIX = "pm2-operator.dashboard-view";
 
 function getStorageKey(userId: string) {
   return `${STORAGE_PREFIX}.${userId}`;

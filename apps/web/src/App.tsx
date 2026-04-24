@@ -6,7 +6,7 @@ import { api, ApiError } from "./lib/api";
 import type { User } from "./lib/types";
 import { useTheme } from "./lib/useTheme";
 
-const ACCESS_TOKEN_KEY = "pm2-log-viewer.access-token";
+const ACCESS_TOKEN_KEY = "pm2-operator.access-token";
 
 function persistAccessToken(token: string | null) {
   if (token) {
@@ -112,7 +112,7 @@ export default function App() {
       <div className="min-h-screen px-4 py-4">
         <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-xl items-center justify-center">
           <div className="panel flex items-center gap-3 px-5 py-4 text-sm text-[color:var(--text-muted)]">
-            Restoring your PM2 workspace...
+            Restoring PM2 Operator...
           </div>
         </div>
       </div>

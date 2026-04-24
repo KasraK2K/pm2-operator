@@ -34,7 +34,7 @@ const authServiceMock = vi.hoisted(() => ({
   })),
   createAccessToken: vi.fn(() => "updated-access-token"),
   createAuthSession: vi.fn(),
-  getRefreshCookieName: vi.fn(() => "pm2lv_refresh"),
+  getRefreshCookieName: vi.fn(() => "pm2_operator_refresh"),
   hashPassword: vi.fn(),
   revokeRefreshToken: vi.fn(),
   rotateRefreshToken: vi.fn(),
@@ -185,7 +185,7 @@ describe("auth.routes", () => {
     const app = createApp();
     const response = await request(app)
       .post("/auth/refresh")
-      .set("Cookie", "pm2lv_refresh=refresh-token");
+      .set("Cookie", "pm2_operator_refresh=refresh-token");
 
     expect(response.status).toBe(200);
     expect(response.body.user).toEqual({

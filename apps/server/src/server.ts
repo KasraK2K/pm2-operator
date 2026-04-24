@@ -17,7 +17,7 @@ async function main() {
   await prisma.$connect();
 
   server.listen(env.APP_PORT, () => {
-    logger.info({ port: env.APP_PORT }, "PM2 Log Viewer server started");
+    logger.info({ port: env.APP_PORT }, "PM2 Operator server started");
   });
 }
 

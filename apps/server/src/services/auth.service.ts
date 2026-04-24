@@ -8,7 +8,7 @@ import { env } from "../config/env";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../utils/app-error";
 
-const REFRESH_COOKIE_NAME = "pm2lv_refresh";
+const REFRESH_COOKIE_NAME = "pm2_operator_refresh";
 
 export interface AuthUser {
   userId: string;

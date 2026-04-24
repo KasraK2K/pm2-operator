@@ -240,8 +240,8 @@ async function runShellCommand(
 ): Promise<CommandResult> {
   const session = await openShell(host, options);
   const marker = randomUUID().replace(/-/g, "");
-  const beginMarker = `__PM2LV_BEGIN__${marker}`;
-  const exitMarkerPrefix = `__PM2LV_EXIT__${marker}:`;
+  const beginMarker = `__PM2OP_BEGIN__${marker}`;
+  const exitMarkerPrefix = `__PM2OP_EXIT__${marker}:`;
   const wrappedCommand = wrapCommandForLoginShell(command);
   const echoedExitCommand = `printf '${exitMarkerPrefix}%s\\n' "$?"`;
 
@@ -517,7 +517,7 @@ export async function createLogStream(
   initialLines: number
 ) {
   const session = await openShell(host);
-  const beginMarker = `__PM2LV_STREAM_BEGIN__${randomUUID().replace(/-/g, "")}`;
+  const beginMarker = `__PM2OP_STREAM_BEGIN__${randomUUID().replace(/-/g, "")}`;
   const command = wrapCommandForLoginShell(
     `printf '${beginMarker}\\n'; exec pm2 logs ${escapeShellArg(processIdOrName)} --raw --lines ${initialLines}`
   );

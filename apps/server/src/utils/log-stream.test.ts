@@ -6,8 +6,8 @@ describe("log-stream utilities", () => {
   it("marks prompt-prefixed begin marker lines as ready", () => {
     expect(
       consumeBeginMarkerLine(
-        "root@Dev3:~# __PM2LV_STREAM_BEGIN__abc123",
-        "__PM2LV_STREAM_BEGIN__abc123"
+        "root@Dev3:~# __PM2OP_STREAM_BEGIN__abc123",
+        "__PM2OP_STREAM_BEGIN__abc123"
       )
     ).toEqual({
       matched: true,
@@ -19,8 +19,8 @@ describe("log-stream utilities", () => {
   it("keeps same-line payload after the begin marker", () => {
     expect(
       consumeBeginMarkerLine(
-        "root@Dev3:~# __PM2LV_STREAM_BEGIN__abc123 [api] service started",
-        "__PM2LV_STREAM_BEGIN__abc123"
+        "root@Dev3:~# __PM2OP_STREAM_BEGIN__abc123 [api] service started",
+        "__PM2OP_STREAM_BEGIN__abc123"
       )
     ).toEqual({
       matched: true,

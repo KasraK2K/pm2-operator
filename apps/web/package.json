@@ -1,5 +1,5 @@
 {
-  "name": "@pm2-log-viewer/web",
+  "name": "@pm2-operator/web",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -26,4 +26,3 @@
     "vite": "^6.2.0"
   }
 }
-

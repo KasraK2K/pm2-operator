@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { DEFAULT_THEME_ID, THEME_LOOKUP, isThemeId, type ThemeId } from "./themes";
 
-const LAST_THEME_KEY = "pm2-log-viewer.last-theme";
+const LAST_THEME_KEY = "pm2-operator.last-theme";
 
 function readStoredTheme() {
   const value = localStorage.getItem(LAST_THEME_KEY);

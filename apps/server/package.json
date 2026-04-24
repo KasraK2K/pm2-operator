@@ -1,5 +1,5 @@
 {
-  "name": "@pm2-log-viewer/server",
+  "name": "@pm2-operator/server",
   "version": "1.0.0",
   "private": true,
   "main": "dist/server.js",

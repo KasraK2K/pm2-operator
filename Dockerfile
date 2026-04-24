@@ -12,7 +12,7 @@ RUN npm install
 
 COPY . .
 
-RUN npm run prisma:generate --workspace @pm2-log-viewer/server
+RUN npm run prisma:generate --workspace @pm2-operator/server
 RUN npm run build
 
 FROM node:22-bookworm-slim AS runtime

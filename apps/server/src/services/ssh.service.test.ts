@@ -65,8 +65,8 @@ describe("ssh.service", () => {
   });
 
   it("parses marker lines even when the shell echoes the printf commands", () => {
-    const beginMarker = "__PM2LV_BEGIN__abc123";
-    const exitPrefix = "__PM2LV_EXIT__abc123:";
+    const beginMarker = "__PM2OP_BEGIN__abc123";
+    const exitPrefix = "__PM2OP_EXIT__abc123:";
     const wrappedCommand = `if [ -n "$SHELL" ]; then "$SHELL" -lc 'pm2 jlist'; fi`;
     const echoedExit = `printf '${exitPrefix}%s\\n' "$?"`;
     const transcript = [
@@ -90,8 +90,8 @@ describe("ssh.service", () => {
   });
 
   it("parses marker lines even when the shell prefixes prompts before them", () => {
-    const beginMarker = "__PM2LV_BEGIN__f35f8abd79ed4696b29bd0b84a1e230c";
-    const exitPrefix = "__PM2LV_EXIT__f35f8abd79ed4696b29bd0b84a1e230c:";
+    const beginMarker = "__PM2OP_BEGIN__f35f8abd79ed4696b29bd0b84a1e230c";
+    const exitPrefix = "__PM2OP_EXIT__f35f8abd79ed4696b29bd0b84a1e230c:";
     const transcript = [
       "Last login: Fri Apr 17 07:12:36 2026 from 87.241.156.219",
       `root@Dev3:~# ${beginMarker}`,
@@ -106,8 +106,8 @@ describe("ssh.service", () => {
   });
 
   it("keeps command output when the exit marker is appended on the same prompt line", () => {
-    const beginMarker = "__PM2LV_BEGIN__e34745bec9884d5cbeb11659c0c21ef1";
-    const exitPrefix = "__PM2LV_EXIT__e34745bec9884d5cbeb11659c0c21ef1:";
+    const beginMarker = "__PM2OP_BEGIN__e34745bec9884d5cbeb11659c0c21ef1";
+    const exitPrefix = "__PM2OP_EXIT__e34745bec9884d5cbeb11659c0c21ef1:";
     const transcript = [
       "Last login: Fri Apr 17 12:50:57 2026 from 87.241.156.219",
       `root@Dev3:~# ${beginMarker}`,
