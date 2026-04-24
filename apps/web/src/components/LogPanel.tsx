@@ -86,88 +86,93 @@ export function LogPanel({
   }
 
   const title = processes.length === 1 ? processes[0].name : `${processes.length} selected processes`;
+  const connectionLabel = `${host.username}@${host.host}:${host.port}`;
 
   return (
     <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden" data-ui="logs-panel">
-      <div className="border-b border-[color:var(--border)] px-4 py-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
+      <div className="border-b border-[color:var(--border)] px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <button
               aria-label="Back to processes"
-              className="button-ghost h-8 w-8 p-0"
+              className="button-ghost h-7 w-7 p-0"
               onClick={onBackToProcesses}
               title="Back to processes"
               type="button"
             >
               <ArrowLeft className="size-4" />
             </button>
-            <div className="min-w-0">
-              <div className="section-kicker">{status}</div>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <h3 className="truncate text-base font-semibold text-[color:var(--text)]">
-                  {host.name} / {title}
-                </h3>
-              </div>
-              <div className="mt-1 flex flex-wrap gap-2 text-xs text-[color:var(--text-soft)]">
-                <span>{host.username}@{host.host}:{host.port}</span>
-              </div>
+            <div className="min-w-0 flex flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+              <h3 className="truncate text-sm font-semibold leading-5 text-[color:var(--text)]">
+                {host.name} / {title}
+              </h3>
+              <span className="rounded-full border border-[color:var(--border)] bg-[color:var(--surface-soft)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-[color:var(--text-soft)]">
+                {status}
+              </span>
+              <span className="max-w-full truncate text-[11px] text-[color:var(--text-soft)]" title={connectionLabel}>
+                {connectionLabel}
+              </span>
             </div>
           </div>
 
-          <CollapseToggleButton collapsed={collapsed} onClick={onToggleCollapsed} />
-        </div>
-
-        <div className="mt-3 flex flex-wrap justify-end gap-2">
-          <button
-            aria-pressed={scrollLock}
-            className={scrollLock ? "button-primary" : "button-secondary"}
-            onClick={onScrollLockToggle}
-            type="button"
-          >
-            <ScrollText className="mr-2 size-4" />
-            {scrollLock ? "Scroll locked" : "Lock scroll"}
-          </button>
-          <button className="button-secondary" onClick={onPauseToggle} type="button">
-            {paused ? <Play className="mr-2 size-4" /> : <Pause className="mr-2 size-4" />}
-            {paused ? "Resume" : "Pause"}
-          </button>
-          <button className="button-secondary" onClick={onClear} title={`Clear logs (${clearShortcut})`} type="button">
-            <RotateCcw className="mr-2 size-4" />
-            Clear
-          </button>
-          <button className="button-secondary" onClick={onDownload} type="button">
-            <Download className="mr-2 size-4" />
-            Download
-          </button>
-          <button className="button-primary" onClick={onRestart} type="button">
-            Restart stream
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <button
+              aria-pressed={scrollLock}
+              className={`${scrollLock ? "button-primary" : "button-secondary"} h-8 px-2.5 py-1 text-xs`}
+              onClick={onScrollLockToggle}
+              type="button"
+            >
+              <ScrollText className="mr-1.5 size-3.5" />
+              {scrollLock ? "Locked" : "Lock"}
+            </button>
+            <button className="button-secondary h-8 px-2.5 py-1 text-xs" onClick={onPauseToggle} type="button">
+              {paused ? <Play className="mr-1.5 size-3.5" /> : <Pause className="mr-1.5 size-3.5" />}
+              {paused ? "Resume" : "Pause"}
+            </button>
+            <button
+              className="button-secondary h-8 px-2.5 py-1 text-xs"
+              onClick={onClear}
+              title={`Clear logs (${clearShortcut})`}
+              type="button"
+            >
+              <RotateCcw className="mr-1.5 size-3.5" />
+              Clear
+            </button>
+            <button className="button-secondary h-8 px-2.5 py-1 text-xs" onClick={onDownload} type="button">
+              <Download className="mr-1.5 size-3.5" />
+              Download
+            </button>
+            <button className="button-primary h-8 px-2.5 py-1 text-xs" onClick={onRestart} type="button">
+              Restart
+            </button>
+            <CollapseToggleButton collapsed={collapsed} onClick={onToggleCollapsed} />
+          </div>
         </div>
 
         {!collapsed ? (
-        <div className="mt-3 grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem]">
-          <label className="space-y-1 text-xs text-[color:var(--text-muted)]">
-            <span>Include regex</span>
+        <div className="mt-2 grid gap-1.5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_6.5rem]">
+          <label className="space-y-0.5 text-[11px] text-[color:var(--text-muted)]">
+            <span>Include</span>
             <input
-              className="field"
+              className="field h-8 px-2.5 py-1 text-xs"
               onChange={(event) => onIncludePatternChange(event.target.value)}
               placeholder="regex"
               value={includePattern}
             />
           </label>
-          <label className="space-y-1 text-xs text-[color:var(--text-muted)]">
-            <span>Exclude regex</span>
+          <label className="space-y-0.5 text-[11px] text-[color:var(--text-muted)]">
+            <span>Exclude</span>
             <input
-              className="field"
+              className="field h-8 px-2.5 py-1 text-xs"
               onChange={(event) => onExcludePatternChange(event.target.value)}
               placeholder="regex"
               value={excludePattern}
             />
           </label>
-          <label className="space-y-1 text-xs text-[color:var(--text-muted)]">
-            <span>Tail lines</span>
+          <label className="space-y-0.5 text-[11px] text-[color:var(--text-muted)]">
+            <span>Tail</span>
             <input
-              className="field"
+              className="field h-8 px-2.5 py-1 text-xs"
               min={10}
               onChange={(event) => onInitialLinesChange(Number(event.target.value) || 200)}
               type="number"
@@ -178,24 +183,24 @@ export function LogPanel({
         ) : null}
 
         {!collapsed ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-          <span className="badge">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+          <span className="badge px-1.5 py-0.5">
             <ScrollText className="size-3.5" />
             {lines.length} visible
           </span>
-          <span className="badge">{bufferedLineCount} buffered</span>
+          <span className="badge px-1.5 py-0.5">{bufferedLineCount} buffered</span>
           {processes.map((process) => (
-            <span className="badge" key={process.pmId}>
+            <span className="badge px-1.5 py-0.5" key={process.pmId}>
               {process.name}
             </span>
           ))}
           {filterError ? (
-            <span className="flash py-1.5 text-xs" data-tone="error">
+            <span className="flash px-2 py-1 text-[11px]" data-tone="error">
               {filterError}
             </span>
           ) : null}
           {streamError ? (
-            <span className="flash py-1.5 text-xs" data-tone="error">
+            <span className="flash px-2 py-1 text-[11px]" data-tone="error">
               {streamError}
             </span>
           ) : null}
