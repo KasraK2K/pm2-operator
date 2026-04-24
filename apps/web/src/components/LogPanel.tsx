@@ -114,33 +114,34 @@ export function LogPanel({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              aria-pressed={scrollLock}
-              className={scrollLock ? "button-primary" : "button-secondary"}
-              onClick={onScrollLockToggle}
-              type="button"
-            >
-              <ScrollText className="mr-2 size-4" />
-              {scrollLock ? "Scroll locked" : "Lock scroll"}
-            </button>
-            <button className="button-secondary" onClick={onPauseToggle} type="button">
-              {paused ? <Play className="mr-2 size-4" /> : <Pause className="mr-2 size-4" />}
-              {paused ? "Resume" : "Pause"}
-            </button>
-            <button className="button-secondary" onClick={onClear} title={`Clear logs (${clearShortcut})`} type="button">
-              <RotateCcw className="mr-2 size-4" />
-              Clear
-            </button>
-            <button className="button-secondary" onClick={onDownload} type="button">
-              <Download className="mr-2 size-4" />
-              Download
-            </button>
-            <button className="button-primary" onClick={onRestart} type="button">
-              Restart stream
-            </button>
-            <CollapseToggleButton collapsed={collapsed} onClick={onToggleCollapsed} />
-          </div>
+          <CollapseToggleButton collapsed={collapsed} onClick={onToggleCollapsed} />
+        </div>
+
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
+          <button
+            aria-pressed={scrollLock}
+            className={scrollLock ? "button-primary" : "button-secondary"}
+            onClick={onScrollLockToggle}
+            type="button"
+          >
+            <ScrollText className="mr-2 size-4" />
+            {scrollLock ? "Scroll locked" : "Lock scroll"}
+          </button>
+          <button className="button-secondary" onClick={onPauseToggle} type="button">
+            {paused ? <Play className="mr-2 size-4" /> : <Pause className="mr-2 size-4" />}
+            {paused ? "Resume" : "Pause"}
+          </button>
+          <button className="button-secondary" onClick={onClear} title={`Clear logs (${clearShortcut})`} type="button">
+            <RotateCcw className="mr-2 size-4" />
+            Clear
+          </button>
+          <button className="button-secondary" onClick={onDownload} type="button">
+            <Download className="mr-2 size-4" />
+            Download
+          </button>
+          <button className="button-primary" onClick={onRestart} type="button">
+            Restart stream
+          </button>
         </div>
 
         {!collapsed ? (
