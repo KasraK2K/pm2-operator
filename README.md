@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo.svg" alt="Project Logo" width="140" />
+  <img src="docs/logo.svg" alt="Project Logo" width="100%" />
 </p>
 
 <h1 align="center">PM2 Log Viewer</h1>
