@@ -118,7 +118,7 @@ export function ThemeMenu({
   return (
     <div className="relative" ref={containerRef}>
       <button
-        className="button-secondary gap-2"
+        className="button-secondary h-[34px] gap-2"
         onClick={() => {
           if (open) {
             onClearPreview();
