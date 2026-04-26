@@ -16,7 +16,7 @@ function joinClasses(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
 }
 
-const FULL_LOGO_SRC = "/pm2-operator-logo-lockup.png";
+const FULL_LOGO_SRC = "/pm2-operator-logo.png";
 const ICON_LOGO_SRC = "/pm2-operator-favicon.png?v=3";
 
 export function BrandMark({

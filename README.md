@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/web/public/pm2-operator-logo-lockup.png" alt="PM2 Operator Logo" width="720" />
+  <img src="apps/web/public/pm2-operator-logo.png" alt="PM2 Operator Logo" width="720" />
 </p>
 
 <h1 align="center">PM2 Operator</h1>
