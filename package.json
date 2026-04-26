@@ -2,6 +2,18 @@
   "name": "pm2-operator",
   "version": "1.0.0",
   "private": true,
+  "description": "PM2 Operator is a focused operations console for managing PM2 hosts, processes, dashboards, and live logs over SSH.",
+  "keywords": [
+    "pm2",
+    "operator",
+    "monitoring",
+    "logs",
+    "ssh",
+    "dashboard",
+    "nodejs",
+    "devops"
+  ],
+  "author": "Kasra Karami <Kasra.Karami.KK@gmail.com>",
   "workspaces": [
     "apps/server",
     "apps/web"
