@@ -26,7 +26,7 @@ export function AuthScreen({ mode, ownerExists, busy, error, onSubmit }: AuthScr
       <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[1280px] gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <section className="panel hidden min-h-[34rem] flex-col justify-between p-6 lg:flex" data-ui="auth-hero">
           <div className="space-y-6">
-            <BrandLockup descriptor="PM2 operations" size="hero" />
+            <BrandLockup className="[&_img]:h-24 sm:[&_img]:h-28" showDescriptor={false} size="hero" />
 
             <div className="max-w-xl">
               <h1 className="text-4xl font-semibold leading-tight text-[color:var(--text)]">
@@ -61,7 +61,7 @@ export function AuthScreen({ mode, ownerExists, busy, error, onSubmit }: AuthScr
           <div className="w-full max-w-md space-y-6">
             <div className="space-y-3">
               <div className="flex justify-center lg:hidden">
-                <BrandLockup align="center" showDescriptor={false} />
+                <BrandLockup align="center" className="[&_img]:h-16" showDescriptor={false} />
               </div>
               <div>
                 <div className="section-kicker">
