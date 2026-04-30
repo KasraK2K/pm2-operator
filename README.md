@@ -371,7 +371,7 @@ There is no dedicated lint script in the repository yet. At the moment, `npm run
 - Expand automated coverage beyond the server suite, especially for frontend and Socket.IO flows
 - Continue refining the dense operator UI for dashboards and long-running log reading sessions
 - Broaden deployment and production-hardening documentation
-- Formalise project metadata for public collaboration, including a license and contributor-facing project policy
+- Formalise contributor-facing project policy for public collaboration
 
 ## Contributing
 
@@ -412,13 +412,11 @@ Please keep pull requests focused and aligned with the existing conventions:
 - keep backend behavior in services, not embedded in routes
 - keep frontend changes consistent with the current React + Tailwind component patterns
 
-> TODO: add a dedicated `CONTRIBUTING.md` and contribution policy once the project's public licensing is finalised.
+> TODO: add a dedicated `CONTRIBUTING.md` and contribution policy.
 
 ## License
 
-License not specified yet.
-
-If this repository is intended for wider public use or external contribution, add a `LICENSE` file before treating it as a formally open-source project.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Author / Maintainer
 

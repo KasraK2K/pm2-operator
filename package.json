@@ -14,6 +14,7 @@
     "devops"
   ],
   "author": "Kasra Karami <Kasra.Karami.KK@gmail.com>",
+  "license": "MIT",
   "workspaces": [
     "apps/server",
     "apps/web"
